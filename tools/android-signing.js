@@ -53,8 +53,8 @@ const keyPass = requireEnv('ANDROID_KEY_PASSWORD');
 fs.writeFileSync(KEYSTORE, Buffer.from(keystoreB64, 'base64'));
 console.log(`android-signing: 写入 ${path.relative(process.cwd(), KEYSTORE)}`);
 
-// 2) 写 android/key.properties（storeFile 用相对 android/ 的路径）
-const relStoreFile = path.relative(ANDROID, KEYSTORE); // → "app/release.keystore"
+// 2) 写 android/key.properties（storeFile 用相对 android/app/ 的路径，因为 file() 在 app/build.gradle 里是相对 app/ 解析的）
+const relStoreFile = path.relative(APP, KEYSTORE); // → "release.keystore"
 const keyPropsContent =
   `storeFile=${relStoreFile}\n` +
   `storePassword=${storePass}\n` +
