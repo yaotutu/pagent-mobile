@@ -37,7 +37,7 @@ jobs:
         run: npm test
 
       # 版本字段守卫：app.json 的三个版本字段只能由 release workflow 里的
-      # tools/bump-version.mjs 写入。任何 PR / push 手动改了它们就 fail。
+      # tools/bump-version.js 写入。任何 PR / push 手动改了它们就 fail。
       - name: Version-field guard
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -70,7 +70,7 @@ jobs:
             echo "$OFFENDING"
             echo ""
             echo "这三个字段（expo.version / android.versionCode / ios.buildNumber）"
-            echo "只能由 tools/bump-version.mjs 在 release workflow 里写入。"
+            echo "只能由 tools/bump-version.js 在 release workflow 里写入。"
             echo "请 revert 这次手动改动。"
             exit 1
           fi

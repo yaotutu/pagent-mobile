@@ -43,13 +43,13 @@ pagent 的官方移动客户端（iOS / Android / 平板，Expo + React Native +
 
 - 三位字段同步 +1：`expo.version` patch +1（1.0.0 → 1.0.1）、`expo.android.versionCode` +1、`expo.ios.buildNumber` +1。开发阶段不引入 semver。
 - **任何 agent / 开发者不得手动修改这三个字段**。`app.json` 其他字段随便改。
-- 版本号只能由 `tools/bump-version.mjs` 写入；跑过一次就 +1，不做"上次 bump 没"的判断。
+- 版本号只能由 `tools/bump-version.js` 写入；跑过一次就 +1，不做"上次 bump 没"的判断。
 
 ### bump 脚本
 
 ```sh
-node tools/bump-version.mjs           # 写回 app.json
-node tools/bump-version.mjs --check   # 只算不算，CI 守门用
+node tools/bump-version.js           # 写回 app.json
+node tools/bump-version.js --check   # 只算不算，CI 守门用
 ```
 
 stdout 输出 `version=X.Y.Z` / `versionCode=N` / `buildNumber=N`，CI 里 `>> "$GITHUB_OUTPUT"` 捕获。
@@ -63,7 +63,7 @@ stdout 输出 `version=X.Y.Z` / `versionCode=N` / `buildNumber=N`，CI 里 `>> "
 ### agent 改 `app.json` 的边界
 
 - `expo.name` / `expo.slug` / `expo.icon` / `plugins` / `expo.web` / `expo.android` 下非 `versionCode` 字段：随便改。
-- `expo.version` / `expo.android.versionCode` / `expo.ios.buildNumber`：**禁止手动改**，跑 `tools/bump-version.mjs`。
+- `expo.version` / `expo.android.versionCode` / `expo.ios.buildNumber`：**禁止手动改**，跑 `tools/bump-version.js`。
 
 ### 当前不做
 

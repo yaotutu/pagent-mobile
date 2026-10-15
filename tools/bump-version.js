@@ -11,8 +11,8 @@
  * 不做"上次 bump 没"的判断，避免 CI 重跑、并发、漏触发导致不一致。
  *
  * 用法：
- *   node tools/bump-version.mjs              真正写回 app.json
- *   node tools/bump-version.mjs --check      只算出新值并打印，不写（供 CI 守门用）
+ *   node tools/bump-version.js              真正写回 app.json
+ *   node tools/bump-version.js --check      只算出新值并打印，不写（供 CI 守门用）
  *
  * 输出：把新版本号以 key=value 形式打印到 stdout：
  *   version=1.0.1
