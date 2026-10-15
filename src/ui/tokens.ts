@@ -54,6 +54,23 @@ export const colors = {
   avatarSky: '#ECF5FA',
   avatarSand: '#FAF0DF',
   avatarLilac: '#F1ECF9',
+
+  /** 弹层遮罩：Sheet/Modal 背后的半透明暗色（值同 OpenMuse modalShade） */
+  shade: 'rgba(35,48,44,0.25)',
+  /** Sheet 抓手条：底部抽屉形态顶部的灰色小条 */
+  grabber: '#D8DBDE',
+  /** 底部 tab bar 胶囊描边（比 line 更浅，配合白底软阴影） */
+  tabBarLine: '#F8F8F8',
+  /** tab bar 软阴影投影色 */
+  tabBarShadow: '#132631',
+  /** 输入框默认描边（composer pill） */
+  inputBorder: '#EEF0F2',
+  /** 输入框聚焦描边（浅蓝） */
+  inputFocusBorder: '#C7E4F9',
+  /** 输入区软阴影投影色 */
+  composerShadow: '#18384B',
+  /** 进度条填充色（目标/任务进度） */
+  progressFill: '#6AAEE0',
 } as const;
 
 /** 圆角体系。OpenMuse 的标志性大圆角，pill 类组件用完整半高圆角。 */
@@ -70,12 +87,27 @@ export const radius = {
   pill: 32,
   /** 底部 tab bar 容器 */
   tab: 40,
+  /** tab bar 选中块 */
+  tabItem: 28,
   /** 按钮 */
   button: 24,
   /** 表单输入框 */
   field: 19,
   /** 36×36 图标底盒 */
   iconBox: 13,
+  /** 小胶囊（Chip / StatusBadge） */
+  chip: 20,
+  /** 错误/提示条 */
+  notice: 14,
+  /** 空状态图标底盒（55×55 大盒用） */
+  emptyIcon: 18,
+  /** 里程碑勾选框 */
+  checkRow: 5,
+  /** 精确圆角键：用于不属于通用圆角档位的局部几何。 */
+  3: 3,
+  4: 4,
+  18: 18,
+  22: 22,
 } as const;
 
 /**
@@ -95,10 +127,18 @@ export const typography = {
   title: { fontSize: 23, lineHeight: 28, letterSpacing: -0.7 },
   /** 卡片标题 */
   heading: { fontSize: 16, lineHeight: 22, letterSpacing: -0.25 },
+  /** 工作台页大标题（比 title 大一档，OpenMuse 页头规格） */
+  pageTitle: { fontSize: 25, lineHeight: 31, letterSpacing: -0.7 },
   /** 聊天正文（比普通正文大一档） */
   chat: { fontSize: 16, lineHeight: 24 },
   /** 空状态大标题 */
   empty: { fontSize: 28, lineHeight: 34, letterSpacing: -1 },
+  /** 登录门大标题 */
+  display: { fontSize: 32, lineHeight: 40, letterSpacing: -1 },
+  /** 按钮文字 */
+  button: { fontSize: 14, lineHeight: 20 },
+  /** 胶囊小字（Chip / StatusBadge） */
+  chip: { fontSize: 10, lineHeight: 14 },
 } as const;
 
 /** 布局常量：内容最大宽度（桌面也是居中窄栏，不做宽屏多栏）。 */
@@ -111,4 +151,153 @@ export const layout = {
   desktopBreakpoint: 900,
   /** Sheet 底部抽屉形态断点（小于它用 slide-up 抽屉，否则居中模态） */
   sheetCompactBreakpoint: 600,
+  /** Sheet 居中模态形态最大宽度 */
+  sheetMaxWidth: 790,
+  /** Sheet 宽形态（wide）最大宽度 */
+  sheetWideMaxWidth: 1050,
+  /** 登录门卡片最大宽度 */
+  loginMaxWidth: 420,
+  /** Sheet 最大高度，保留视口比例以适配不同设备 */
+  sheetMaxHeight: '94%',
+  /** 表单与内容栏占满父容器 */
+  fullWidth: '100%',
+  /** 用户消息气泡相对聊天栏的最大宽度 */
+  userBubbleMaxWidth: '85%',
+  /** 助手消息行宽度比例 */
+  assistantRowWidth: '95%',
+  /** 顶栏名称最大宽度比例 */
+  topBarTitleWidth: '70%',
+  /** Toast 内容最大宽度 */
+  toastMaxWidth: 560,
+  /** 空状态说明文字最大宽度 */
+  emptyTextMaxWidth: 360,
+} as const;
+
+/** 布局间距集中声明；精确数值键保留既有视觉规格，常用语义键便于复用。 */
+export const spacing = {
+  /** 精确像素键：样式中遇到单次规格时直接用 spacing[值]，避免改动原值。 */
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
+  10: 10,
+  11: 11,
+  12: 12,
+  13: 13,
+  14: 14,
+  15: 15,
+  16: 16,
+  17: 17,
+  18: 18,
+  19: 19,
+  20: 20,
+  22: 22,
+  24: 24,
+  26: 26,
+  28: 28,
+  34: 34,
+  36: 36,
+  38: 38,
+  40: 40,
+  42: 42,
+  44: 44,
+  45: 45,
+  47: 47,
+  48: 48,
+  /** 紧凑图标/文字间距 */
+  xxs: 2,
+  /** 紧凑行内间距 */
+  xs: 4,
+  /** 小间距 */
+  sm: 8,
+  /** 常规间距 */
+  md: 12,
+  /** 卡片内间距 */
+  lg: 16,
+  /** 区块间距 */
+  xl: 22,
+  /** 页面区块留白 */
+  section: 24,
+} as const;
+
+/** 常用固定尺寸：用于统一命中区、图标盒与输入控件的几何规格。 */
+export const sizing = {
+  /** 精确尺寸键：用于单次出现的宽高与图标盒规格。 */
+  borderWidth: 1,
+  38: 38,
+  3: 3,
+  4: 4,
+  6: 6,
+  13: 13,
+  14: 14,
+  15: 15,
+  16: 16,
+  18: 18,
+  19: 19,
+  20: 20,
+  22: 22,
+  23: 23,
+  24: 24,
+  26: 26,
+  28: 28,
+  30: 30,
+  34: 34,
+  36: 36,
+  42: 42,
+  44: 44,
+  47: 47,
+  55: 55,
+  58: 58,
+  64: 64,
+  70: 70,
+  76: 76,
+  94: 94,
+  96: 96,
+  120: 120,
+  140: 140,
+  360: 360,
+  /** 常用触控命中区 */
+  touchTarget: 44,
+  /** 小图标 */
+  iconSmall: 15,
+  /** 中图标 */
+  iconMedium: 18,
+  /** 表单输入最小高度 */
+  inputMinHeight: 45,
+} as const;
+
+/**
+ * 阴影：iOS 系 shadow* 属性与 Android elevation 一并声明，
+ * 组件直接展开使用（OpenMuse 同款参数）。
+ */
+export const shadows = {
+  /** 底部 tab bar 白胶囊的软阴影 */
+  tabBar: {
+    shadowColor: '#132631',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  /** 聊天输入 pill 的软阴影 */
+  composer: {
+    shadowColor: '#18384B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 2,
+  },
+  /** 聊天输入 pill 聚焦时的加深阴影 */
+  composerFocused: {
+    shadowColor: '#18384B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 3,
+  },
 } as const;
