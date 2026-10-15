@@ -1,0 +1,109 @@
+name: release
+
+# 触发：push 到 main
+# 职责：bump 版本号 → Android 构建 → 创建 published GitHub Release
+# 注意：当前产物是 debug-signed APK（能装但未正式签名）。正式签名见 AGENTS.md "CI/CD 与版本号管理" 章节。
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false  # 已在跑的 release 不要被新 push 取消
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write  # 让 bump commit 能 push + 创建 Release
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # 调用已有的 bump 脚本，把新版本号写到 $GITHUB_OUTPUT 让后续 step 引用
+      - name: Bump version
+        id: bump
+        run: |
+          node tools/bump-version.mjs >> "$GITHUB_OUTPUT"
+          echo "--- bumped ---"
+          cat "$GITHUB_OUTPUT"
+
+      # 把改了 app.json 的 commit 带 [skip ci] 推回 main，避免下次 push 又触发 release
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app.json
+          if git diff --staged --quiet; then
+            echo "No version bump needed"
+            exit 0
+          fi
+          git commit -m "ci: bump version to ${{ steps.bump.outputs.version }} [skip ci]"
+          git push
+
+      # Android 构建链：JDK 17 + Android SDK + Gradle
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # SDK 57 对应 compileSdkVersion 36，build-tools 最新稳定
+          # 默认 platform 即可（auto-detect from project）
+          cmdline-tools-version: '11076708'
+          sdk-version: '36'
+          build-tools-version: '36.0.0'
+          ndk-version: '27.1.12297006'
+
+      # Expo prebuild：CNG 模式下每次重新生成 android/ 目录
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android --no-install --clean
+
+      # 缓存 Gradle 加速（best-effort）
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      # 构建 release APK。当前未配正式签名，沿用 Expo 模板默认的 debug 签名。
+      - name: Build Android release APK
+        run: cd android && ./gradlew :app:assembleRelease
+
+      # 把 APK 当作 Release 的 asset
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ steps.bump.outputs.version }}.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      # 创建 published GitHub Release，附 .apk 作为 asset
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.bump.outputs.version }}
+          name: v${{ steps.bump.outputs.version }}
+          generate_release_notes: true
+          files: android/app/build/outputs/apk/release/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

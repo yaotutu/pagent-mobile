@@ -35,6 +35,40 @@ pagent 的官方移动客户端（iOS / Android / 平板，Expo + React Native +
 
 进度、阶段计划与页面规格见 `docs/HANDOFF.md`。
 
+## CI/CD 与版本号管理（开发阶段）
+
+本仓库当前未配置 GitHub Actions workflow，仅有本地 bump 脚本 + 规范说明。后续接 CI/CD 时按本节执行，**不要偏离**。
+
+### 版本号规则（强约束）
+
+- 三位字段同步 +1：`expo.version` patch +1（1.0.0 → 1.0.1）、`expo.android.versionCode` +1、`expo.ios.buildNumber` +1。开发阶段不引入 semver。
+- **任何 agent / 开发者不得手动修改这三个字段**。`app.json` 其他字段随便改。
+- 版本号只能由 `tools/bump-version.mjs` 写入；跑过一次就 +1，不做"上次 bump 没"的判断。
+
+### bump 脚本
+
+```sh
+node tools/bump-version.mjs           # 写回 app.json
+node tools/bump-version.mjs --check   # 只算不算，CI 守门用
+```
+
+stdout 输出 `version=X.Y.Z` / `versionCode=N` / `buildNumber=N`，CI 里 `>> "$GITHUB_OUTPUT"` 捕获。
+
+### 后续接 CI/CD 时按这个做
+
+- `release.yml`（push to main）：bump → `[skip ci]` 提交回 main → 触发 Android 构建 → `softprops/action-gh-release@v3` 创建 published Release。
+- `ci.yml`（push/PR）：**必须包含 version-field 守卫**——检测 `app.json` 三个版本字段被改 → fail PR。这是规则不被打破的唯一手段。
+- 仓库设置：main 走 branch protection 禁直接 push（`gh api repos/:owner/:repo/branches/main/protection`）；keystore 用 `gh secret set` 上传，文件不进仓库。
+
+### agent 改 `app.json` 的边界
+
+- `expo.name` / `expo.slug` / `expo.icon` / `plugins` / `expo.web` / `expo.android` 下非 `versionCode` 字段：随便改。
+- `expo.version` / `expo.android.versionCode` / `expo.ios.buildNumber`：**禁止手动改**，跑 `tools/bump-version.mjs`。
+
+### 当前不做
+
+iOS 构建、OTA 自动更新、Play Store 自动上架。后期接 OTA 时再单独开规范。
+
 ---
 
 以下为 Expo 官方工程指南（模板自带，仍然适用）：

@@ -1,0 +1,78 @@
+name: ci
+
+# 触发：push 到 main / 任何 PR 推送到 main
+# 职责：质量门槛（lint + typecheck + test）+ 版本字段守卫（保证 expo.version / android.versionCode / ios.buildNumber 三个字段只能由 release workflow 改）
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # 拉完整历史，让 Version-field guard 能做 git diff
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx expo lint
+
+      - name: Test
+        run: npm test
+
+      # 版本字段守卫：app.json 的三个版本字段只能由 release workflow 里的
+      # tools/bump-version.mjs 写入。任何 PR / push 手动改了它们就 fail。
+      - name: Version-field guard
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -e
+
+          # 决定 diff 基准：PR 用 base commit，push 用前一个 commit
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE_SHA"
+            HEAD="$PR_HEAD_SHA"
+          else
+            BASE="$PUSH_BEFORE"
+            HEAD="$HEAD_SHA"
+          fi
+
+          if ! git rev-parse "$BASE^{commit}" >/dev/null 2>&1; then
+            echo "比较基准 $BASE 不存在（首次 push？），跳过守卫"
+            exit 0
+          fi
+
+          DIFF=$(git diff "$BASE^{commit}" "$HEAD^{commit}" -- app.json 2>/dev/null || true)
+          OFFENDING=$(echo "$DIFF" | grep -E '^[-+]\s*"(version|versionCode|buildNumber)"' || true)
+
+          if [ -n "$OFFENDING" ]; then
+            echo "❌ 检测到 app.json 的版本字段被改："
+            echo "$OFFENDING"
+            echo ""
+            echo "这三个字段（expo.version / android.versionCode / ios.buildNumber）"
+            echo "只能由 tools/bump-version.mjs 在 release workflow 里写入。"
+            echo "请 revert 这次手动改动。"
+            exit 1
+          fi
+
+          echo "✓ 版本字段未被改动"
