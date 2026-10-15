@@ -37,7 +37,7 @@ pagent 的官方移动客户端（iOS / Android / 平板，Expo + React Native +
 
 ## CI/CD 与版本号管理（开发阶段）
 
-本仓库当前未配置 GitHub Actions workflow，仅有本地 bump 脚本 + 规范说明。后续接 CI/CD 时按本节执行，**不要偏离**。
+本仓库已接 GitHub Actions（`.github/workflows/ci.yml` + `release.yml`），CI/CD 已跑通（首个成功 release：v1.0.5，正式 keystore 签名）。
 
 ### 版本号规则（强约束）
 
@@ -54,16 +54,38 @@ node tools/bump-version.js --check   # 只算不算，CI 守门用
 
 stdout 输出 `version=X.Y.Z` / `versionCode=N` / `buildNumber=N`，CI 里 `>> "$GITHUB_OUTPUT"` 捕获。
 
-### 后续接 CI/CD 时按这个做
+### CI workflow（push / PR 触发）
 
-- `release.yml`（push to main）：bump → `[skip ci]` 提交回 main → 触发 Android 构建 → `softprops/action-gh-release@v3` 创建 published Release。
-- `ci.yml`（push/PR）：**必须包含 version-field 守卫**——检测 `app.json` 三个版本字段被改 → fail PR。这是规则不被打破的唯一手段。
-- 仓库设置：main 走 branch protection 禁直接 push（`gh api repos/:owner/:repo/branches/main/protection`）；keystore 用 `gh secret set` 上传，文件不进仓库。
+- `npx tsc --noEmit` + `npx expo lint` + `npm test`（28 项）守住质量门槛
+- **Version-field 守卫**（核心）：检测 `app.json` 的 `expo.version` / `expo.android.versionCode` / `expo.ios.buildNumber` 三字段在 PR / push 的 diff 里被改 → fail。这是版本号规则不被打破的唯一手段，**任何 agent 接手都不能跳过这个守卫**
+
+### Release workflow（push to main 触发）
+
+流水线：
+
+1. `node tools/bump-version.js` 自增三个版本字段
+2. `[skip ci]` 提交回 main（避免循环触发）
+3. `npx expo prebuild --platform android --no-install --clean`（CNG：每次重新生成 android/）
+4. `node tools/android-signing.js`（从 gh secrets 注入 4 个 `ANDROID_KEYSTORE_*` 环境变量；写入 `android/app/release.keystore` + `android/key.properties` + 改 `android/app/build.gradle` 让 `signingConfigs.release` 指向我们 keystore；幂等）
+5. JDK 17 + Android SDK 36（`android-actions/setup-android@v4` + `packages:` 显式装，绕开 v3 的 deprecated `tools` 包 bug）
+6. `./gradlew :app:assembleRelease` 出正式签名 APK
+7. `softprops/action-gh-release@v3` 创建 `vX.Y.Z` published Release，APK 作为 asset
+
+### 已跑的 release（不要随便删除）
+
+- `v1.0.5`：首个**正式签名**成功的 release。APK 75MB，签名证书 DN `CN=pagent-mobile, OU=Mobile, O=pagent, L=Shanghai, ST=Shanghai, C=CN`，SHA-256 `e3af25100910b7c58131e7ac527123e9497b184a5cabb6a84adf76732557273e`。验证工具：`/tmp/sdk/build-tools/34.0.0/apksigner verify --print-certs`
+- v1.0.1 ~ v1.0.4 失败 run 自动 bump 的 commit 存在但**未发布 release**（CI 失败时 `softprops` 不创建 release），无需清理
+
+### 仓库设置（Agent 不要改）
+
+- 4 个 `ANDROID_KEYSTORE_*` secrets 已在仓库；**密钥文件本身**放在仓库内 `.keystore/release.keystore`（gitignored），主备份应放用户自己的密码管理器 / 1Password
+- **Branch protection 未开**：当前 main 仍可直 push。如果要开用 `gh api repos/:owner/:repo/branches/main/protection` 强制 PR + CI 守门
 
 ### agent 改 `app.json` 的边界
 
-- `expo.name` / `expo.slug` / `expo.icon` / `plugins` / `expo.web` / `expo.android` 下非 `versionCode` 字段：随便改。
+- `expo.name` / `expo.slug` / `expo.icon` / `plugins` / `expo.web` / `expo.android` 下非 `versionCode` 字段 / `android.package`：随便改。
 - `expo.version` / `expo.android.versionCode` / `expo.ios.buildNumber`：**禁止手动改**，跑 `tools/bump-version.js`。
+- `android.package`：当前是 `com.yaotutu.pagentmobile`。**不可改**——Play Store 包名绑定，改了装过的人升级会拒收。
 
 ### 当前不做
 
