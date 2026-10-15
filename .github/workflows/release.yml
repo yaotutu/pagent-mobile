@@ -61,14 +61,16 @@ jobs:
           java-version: 17
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
-          # SDK 57 对应 compileSdkVersion 36，build-tools 最新稳定
-          # 默认 platform 即可（auto-detect from project）
+          # Expo SDK 57 / RN 0.86 锁定的版本：API 36 + build-tools 36.0.0 + NDK 27.1.12297006
+          # 用 packages 显式列，不用 sdk-version（v4 不再自动装 deprecated 'tools' 包）
           cmdline-tools-version: '11076708'
-          sdk-version: '36'
-          build-tools-version: '36.0.0'
-          ndk-version: '27.1.12297006'
+          packages: >-
+            platform-tools
+            platforms;android-36
+            build-tools;36.0.0
+            ndk;27.1.12297006
 
       # Expo prebuild：CNG 模式下每次重新生成 android/ 目录
       - name: Prebuild Android
