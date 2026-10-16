@@ -19,6 +19,13 @@ export const toolTextField = (record: Record<string, unknown>, ...keys: string[]
   return typeof value === 'string' ? value : '';
 };
 
+export function toolResultContent(raw?: string) {
+  const result = parseToolRecord(raw);
+  const summary = toolTextField(result, 'title', 'text', 'message');
+  const failure = toolTextField(result, 'error');
+  return { summary, failure, fallback: !summary && !failure ? raw : undefined };
+}
+
 /** 仅接受明确的结构化结果；有结果不等于执行成功，更不等于已获批准。 */
 export const toolOutcome = (raw?: string): 'running' | 'failed' | 'saved' | 'finished' => {
   if (raw === undefined) return 'running';

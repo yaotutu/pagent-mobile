@@ -1,6 +1,7 @@
+import './register-source.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseSseFrames } from '../src/lib/api.ts';
+import { parseSseFrames } from '../src/api/sse.ts';
 
 const started = { type: 'TEXT_MESSAGE_START', messageId: 'active', role: 'assistant' };
 const delta = { type: 'TEXT_MESSAGE_CONTENT', messageId: 'active', delta: '中文增量' };

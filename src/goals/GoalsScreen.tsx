@@ -1,32 +1,39 @@
-/**
- * 目标页：目标 CRUD + 里程碑勾选 + 进度条。
- *
- * 协议约束（对齐 openapi）：
- * - 全部里程碑勾完不自动完成——完成必须显式走 status 端点；
- * - completed 会自动勾掉全部里程碑，重新激活不回退勾选记录；
- * - 编辑端点不含里程碑（里程碑只随创建提交、之后仅可勾选）。
- */
+// 按目标加同步锁；完成必须显式提交，勾完里程碑不自动变更目标状态。
 
-import { Pencil, Plus, SquareCheck, Trash2 } from 'lucide-react-native';
+import { ChevronRight, CircleDollarSign, Heart, Square, SquareCheck, Target, Users } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useApi } from '../lib/api-context';
-import type { GoalInput } from '../lib/api';
-import { timeAgo } from '../lib/format';
-import type { Goal, GoalStatus, WorkspaceSnapshot } from '../lib/types';
-import {
-  Button,
-  Card,
-  CheckRow,
-  Chip,
-  Empty,
-  ErrorNotice,
-  Field,
-  SectionHeading,
-  Sheet,
-  StatusBadge,
-} from '../ui/components';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useApi } from '../api/ApiProvider';
+import type { Goal, GoalStatus, WorkspaceSnapshot } from '../api/types';
+import { Empty, ErrorNotice } from '../ui/Feedback';
+import { Chip } from '../ui/Surfaces';
 import { colors, radius, sizing, spacing, typography } from '../ui/tokens';
+import { goalCategoryLabel } from './presentation';
+import { GoalDetailSheet } from './GoalDetailSheet';
+import { GoalFormSheet } from './GoalFormSheet';
+
+/** 列表筛选：当前=进行中与暂停，已完成=completed/archived，全部=不过滤。 */
+type Filter = 'current' | 'done' | 'all';
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'current', label: '当前' },
+  { id: 'done', label: '已完成' },
+  { id: 'all', label: '全部' },
+];
+
+/** 创建入口的分类预填项；category 原样透传给服务端。 */
+const CREATE_CATEGORIES: { name: string; category: string; icon: typeof Heart }[] = [
+  { name: '健康', category: 'health', icon: Heart },
+  { name: '关系', category: 'relationship', icon: Users },
+  { name: '财务', category: 'finance', icon: CircleDollarSign },
+  { name: '其他', category: 'other', icon: Target },
+];
+
+const matches = (goal: Goal, filter: Filter) =>
+  filter === 'all'
+    ? true
+    : filter === 'current'
+      ? goal.status === 'active' || goal.status === 'paused'
+      : goal.status === 'completed' || goal.status === 'archived';
 
 export function GoalsScreen({
   snapshot,
@@ -37,290 +44,191 @@ export function GoalsScreen({
 }) {
   const api = useApi();
   const goals = snapshot?.goals ?? [];
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<Goal>();
-  const [confirmRemove, setConfirmRemove] = useState<Goal>();
+  const [filter, setFilter] = useState<Filter>('current');
+  const [detailId, setDetailId] = useState<string>();
+  const [creating, setCreating] = useState<string>();
   const inFlight = useRef(new Set<string>());
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string>();
 
-  const run = async (id: string, action: () => Promise<unknown>) => {
-    // toggle 不是幂等写入：同一目标的里程碑/状态请求串行化，避免连点翻回原值。
-    // ref 在下一次渲染前就生效；按目标加锁，其他目标仍可独立操作。
-    if (inFlight.current.has(id)) return;
+  // ref 锁在渲染前生效；失败继续抛给表单，以保留输入与弹层。
+  const perform = async (id: string, action: () => Promise<unknown>) => {
+    if (inFlight.current.has(id)) throw new Error('操作进行中，请稍候');
     inFlight.current.add(id);
     setBusyIds(new Set(inFlight.current));
     setError(undefined);
     try {
       await action();
       refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
     } finally {
       inFlight.current.delete(id);
       setBusyIds(new Set(inFlight.current));
     }
   };
 
+  /** 页面内的即发即忘操作（里程碑勾选、状态迁移）：失败落到页面级 ErrorNotice。 */
+  const run = (id: string, action: () => Promise<unknown>) => {
+    void perform(id, action).catch((e) => {
+      setError(e instanceof Error ? e.message : String(e));
+    });
+  };
+
+  // 详情内容始终按 id 回查快照：写入后自动反映新状态，删除后详情随之关闭。
+  const detail = detailId ? goals.find((goal) => goal.id === detailId) : undefined;
+  const visible = goals.filter((goal) => matches(goal, filter));
+
   return (
-    <View style={{ gap: spacing[18] }}>
-      <SectionHeading title="目标" action="新建" onPress={() => setCreating(true)} />
+    <View style={{ gap: spacing.xl }}>
+      <View style={styles.filterRow}>
+        {FILTERS.map((item) => {
+          const active = filter === item.id;
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              aria-pressed={active}
+              onPress={() => setFilter(item.id)}
+              style={[styles.filterPill, active && styles.filterPillActive]}
+            >
+              <Text style={[styles.filterText, active && { color: colors.ink }]}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <ErrorNotice error={error} />
-      {goals.length === 0 ? (
-        <Empty
-          icon={SquareCheck}
-          title="还没有目标"
-          detail="创建一个目标，助手会在规划类回答中引用它的进度。"
-        />
-      ) : (
-        goals.map((goal) => (
-          <GoalCard
-            key={goal.id}
-            goal={goal}
-            busy={busyIds.has(goal.id)}
-            onToggle={(mid) => void run(goal.id, () => api.toggleMilestone(goal.id, mid))}
-            onStatus={(status) => void run(goal.id, () => api.setGoalStatus(goal.id, status))}
-            onEdit={() => setEditing(goal)}
-            onRemove={() => setConfirmRemove(goal)}
+
+      {visible.length === 0 ? (
+        goals.length === 0 ? (
+          <Empty
+            icon={SquareCheck}
+            title="还没有目标"
+            detail="从下面挑一个分类，或在聊天里让助手帮你拆解。"
           />
+        ) : (
+          // 筛选后为空是正常状态，只留一行轻量说明，不占用大块留白。
+          <Text style={styles.filterHint}>
+            {filter === 'done' ? '还没有已完成的目标。' : '当前没有进行中的目标。'}
+          </Text>
+        )
+      ) : (
+        visible.map((goal) => (
+          <Pressable
+            key={goal.id}
+            accessibilityRole="button"
+            accessibilityLabel={`打开目标：${goal.title}`}
+            onPress={() => setDetailId(goal.id)}
+            style={({ pressed }) => [styles.goalRow, pressed && { backgroundColor: colors.canvas }]}
+          >
+            <Square
+              size={sizing[20]}
+              color={goal.status === 'completed' ? colors.success : colors.muted}
+              fill={goal.status === 'completed' ? colors.success : 'transparent'}
+            />
+            <View style={styles.goalBody}>
+              <Text style={styles.goalTitle} numberOfLines={1}>
+                {goal.title}
+              </Text>
+              <View style={styles.metaRow}>
+                {goal.category ? <Chip>{goalCategoryLabel(goal.category)}</Chip> : null}
+                <Text style={styles.goalMeta} numberOfLines={1}>
+                  {summarize(goal)}
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={sizing.iconMedium} color={colors.muted} />
+          </Pressable>
         ))
+      )}
+
+      <View style={styles.divider} />
+      <Text style={styles.sectionLabel}>新建目标</Text>
+      {CREATE_CATEGORIES.map((item) => (
+        <Pressable
+          key={item.name}
+          accessibilityRole="button"
+          accessibilityLabel={`新建${item.name}目标`}
+          onPress={() => setCreating(item.category)}
+          style={({ pressed }) => [styles.categoryRow, pressed && { opacity: 0.6 }]}
+        >
+          <item.icon size={sizing.iconMedium} color={colors.muted} />
+          <Text style={styles.categoryText}>{item.name}</Text>
+          <ChevronRight size={sizing.iconSmall} color={colors.muted} />
+        </Pressable>
+      ))}
+
+      {detail && (
+        <GoalDetailSheet
+          goal={detail}
+          error={error}
+          busy={busyIds.has(detail.id)}
+          onClose={() => setDetailId(undefined)}
+          onToggle={(mid) => run(detail.id, () => api.toggleMilestone(detail.id, mid))}
+          onStatus={(status: GoalStatus) => run(detail.id, () => api.setGoalStatus(detail.id, status))}
+          onEdit={async (input) => {
+            await perform(detail.id, () => api.updateGoal(detail.id, input));
+          }}
+          onRemove={async () => {
+            await perform(detail.id, () => api.removeGoal(detail.id));
+            setDetailId(undefined);
+          }}
+        />
       )}
 
       {creating && (
         <GoalFormSheet
           title="新建目标"
-          onClose={() => setCreating(false)}
+          initialCategory={creating}
+          onClose={() => setCreating(undefined)}
           onSubmit={async (input) => {
             await api.createGoal(input);
-            setCreating(false);
+            setCreating(undefined);
             refresh();
           }}
         />
-      )}
-      {editing && (
-        <GoalFormSheet
-          title="编辑目标"
-          goal={editing}
-          onClose={() => setEditing(undefined)}
-          onSubmit={async (input) => {
-            await api.updateGoal(editing.id, input);
-            setEditing(undefined);
-            refresh();
-          }}
-        />
-      )}
-      {confirmRemove && (
-        <Sheet title="删除目标" subtitle={confirmRemove.title} onClose={() => setConfirmRemove(undefined)}>
-          <View style={{ gap: spacing[14] }}>
-            <Text style={{ ...typography.muted, color: colors.muted }}>
-              删除后不可恢复，里程碑记录一并清除。
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm }}>
-              <Button onPress={() => setConfirmRemove(undefined)}>取消</Button>
-              <Button
-                danger
-                icon={Trash2}
-                busy={busyIds.has(confirmRemove.id)}
-                onPress={() =>
-                  void run(confirmRemove.id, async () => {
-                    await api.removeGoal(confirmRemove.id);
-                    setConfirmRemove(undefined);
-                  })
-                }
-              >
-                删除
-              </Button>
-            </View>
-          </View>
-        </Sheet>
       )}
     </View>
   );
 }
 
-// ---------------------------------------------------------------------------
-// 目标卡
-// ---------------------------------------------------------------------------
-
-function GoalCard({
-  goal,
-  busy,
-  onToggle,
-  onStatus,
-  onEdit,
-  onRemove,
-}: {
-  goal: Goal;
-  busy?: boolean;
-  onToggle: (milestoneId: string) => void;
-  onStatus: (status: GoalStatus) => void;
-  onEdit: () => void;
-  onRemove: () => void;
-}) {
+// 列表摘要同时提供进度和下一步，完整内容在详情展示。
+function summarize(goal: Goal) {
+  const next = goal.milestones.find((m) => !m.done)?.title;
   const done = goal.milestones.filter((m) => m.done).length;
+  if (next) return `${done}/${goal.milestones.length} 已完成 · ${next}`;
   const total = goal.milestones.length;
-  const percent = total ? Math.round((done / total) * 100) : 0;
-
-  /** 状态迁移入口：active→暂停/完成；paused→激活；completed/archived→重新激活 */
-  const transitions: { label: string; status: GoalStatus }[] =
-    goal.status === 'active'
-      ? [
-          { label: '暂停', status: 'paused' },
-          { label: '完成', status: 'completed' },
-        ]
-      : goal.status === 'paused'
-        ? [{ label: '激活', status: 'active' }]
-        : [{ label: '重新激活', status: 'active' }];
-
-  return (
-    <Card style={{ gap: spacing.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing[10] }}>
-        <View style={{ flex: 1, gap: spacing[5] }}>
-          <Text style={{ ...typography.heading, fontWeight: '600', color: colors.ink }}>
-            {goal.title}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <StatusBadge status={goal.status} />
-            {goal.category ? <Chip>{goal.category}</Chip> : null}
-            <Text style={{ ...typography.small, color: colors.muted }}>
-              {total ? `${done}/${total} 里程碑` : '无里程碑'}
-            </Text>
-          </View>
-        </View>
-        <Button small icon={Pencil} onPress={onEdit}>
-          编辑
-        </Button>
-      </View>
-
-      {goal.description ? (
-        <Text style={{ ...typography.muted, color: colors.muted }} numberOfLines={2}>
-          {goal.description}
-        </Text>
-      ) : null}
-
-      {total > 0 && (
-        <View style={{ gap: spacing[9] }}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${percent}%` }]} />
-          </View>
-          {goal.milestones.map((m) => (
-            <CheckRow key={m.id} label={m.title} checked={m.done} onPress={() => {
-              if (!busy) onToggle(m.id);
-            }} />
-          ))}
-        </View>
-      )}
-
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ ...typography.small, color: colors.muted }}>更新于 {timeAgo(goal.updatedAt)}</Text>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {transitions.map(({ label, status }) => (
-            <Button key={status} small busy={busy} onPress={() => onStatus(status)}>
-              {label}
-            </Button>
-          ))}
-          <Button small danger icon={Trash2} onPress={onRemove}>
-            删除
-          </Button>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// 新建/编辑表单 Sheet（编辑态不出现里程碑字段：协议只允许创建时提交）
-// ---------------------------------------------------------------------------
-
-function GoalFormSheet({
-  title,
-  goal,
-  onClose,
-  onSubmit,
-}: {
-  title: string;
-  goal?: Goal;
-  onClose: () => void;
-  onSubmit: (input: GoalInput) => Promise<void>;
-}) {
-  const [form, setForm] = useState<GoalInput>({
-    title: goal?.title ?? '',
-    description: goal?.description ?? '',
-    category: goal?.category ?? '',
-    milestones: [],
-  });
-  const [milestonesText, setMilestonesText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
-
-  return (
-    <Sheet title={title} onClose={onClose}>
-      <View style={{ gap: spacing.md }}>
-        <ErrorNotice error={error} />
-        <Field
-          label="目标标题"
-          value={form.title}
-          onChangeText={(title) => setForm((f) => ({ ...f, title }))}
-          placeholder="例如：完成移动端 v1"
-        />
-        <Field
-          label="描述（可选）"
-          value={form.description}
-          onChangeText={(description) => setForm((f) => ({ ...f, description }))}
-          placeholder="一两句话说清这个目标"
-          multiline
-        />
-        <Field
-          label="分类（可选）"
-          value={form.category}
-          onChangeText={(category) => setForm((f) => ({ ...f, category }))}
-          placeholder="如 fitness / study / product"
-        />
-        {!goal && (
-          <Field
-            label="里程碑（可选，每行一个）"
-            value={milestonesText}
-            onChangeText={setMilestonesText}
-            placeholder={'组件库\n聊天链路\nAndroid 冒烟'}
-            multiline
-          />
-        )}
-        <Button
-          primary
-          icon={Plus}
-          busy={busy}
-          onPress={async () => {
-            if (!form.title.trim()) {
-              setError('目标标题不能为空');
-              return;
-            }
-            setBusy(true);
-            setError(undefined);
-            try {
-              await onSubmit({
-                ...form,
-                title: form.title.trim(),
-                milestones: goal
-                  ? undefined
-                  : milestonesText
-                      .split('\n')
-                      .map((line) => line.trim())
-                      .filter(Boolean),
-              });
-            } catch (e) {
-              setError(e instanceof Error ? e.message : String(e));
-              setBusy(false);
-            }
-          }}
-        >
-          保存
-        </Button>
-      </View>
-    </Sheet>
-  );
+  if (total) return `${total}/${total} 里程碑已完成`;
+  return goal.description || '无里程碑';
 }
 
 const styles = StyleSheet.create({
-  progressTrack: { height: sizing[4], borderRadius: radius[4], backgroundColor: colors.line },
-  progressFill: { height: sizing[4], borderRadius: radius[4], backgroundColor: colors.progressFill },
+  filterRow: { flexDirection: 'row', gap: spacing.sm },
+  filterPill: {
+    paddingHorizontal: spacing[14],
+    paddingVertical: spacing[7],
+    borderRadius: radius.pill,
+    backgroundColor: colors.subtle,
+  },
+  filterPillActive: { backgroundColor: colors.bubbleUser },
+  filterText: { ...typography.button, fontWeight: '600', color: colors.muted },
+  filterHint: { ...typography.muted, color: colors.muted, paddingVertical: spacing.sm },
+
+  // 列表行：OpenMuse 同款左图标 / 中内容 / 右箭头的三段式，不再套卡片。
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.field,
+  },
+  goalBody: { flex: 1, gap: spacing.xs },
+  goalTitle: { ...typography.text, color: colors.ink },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  goalMeta: { ...typography.small, color: colors.muted, flexShrink: 1 },
+
+  divider: { height: sizing.borderWidth, backgroundColor: colors.line },
+  sectionLabel: { ...typography.label, fontWeight: '700', color: colors.muted, textTransform: 'uppercase' },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: sizing[38] },
+  categoryText: { ...typography.text, color: colors.muted, flex: 1 },
 });

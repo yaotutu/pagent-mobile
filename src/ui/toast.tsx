@@ -55,9 +55,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    bottom: 94,
-    left: 20,
-    right: 20,
+    bottom: layout.toastBottom,
+    left: spacing[20],
+    right: spacing[20],
     alignItems: 'center',
   },
   pill: {

@@ -10,7 +10,7 @@
  * - role=tool 的历史消息是结果投影，归并进对应 assistant 消息。
  */
 
-import type { AgUiEvent, ConversationMessage } from '../lib/types';
+import type { AgUiEvent, ConversationMessage } from '../api/types';
 
 /** 单次工具调用的渲染视图 */
 export type ToolCallView = {

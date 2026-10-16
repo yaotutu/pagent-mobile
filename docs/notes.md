@@ -19,3 +19,8 @@
 
 - **已修复客户端旧契约适配**：以当前 8788/8790 OpenAPI 为准，聊天改为 `POST /api/conversation/run` 的 `{threadId,runId,expectedRevision,message}` 增量请求；历史保留 `{revision,messages}`；停止改为 `POST /api/conversation/stop` 并同时匹配两个 ID。任务 kind/target 使用 `job|task`，详情读取 `{task,events}`。`GET /api/agent` 不再含审批正文，由客户端并行读取 `/api/actions/pending` 后合成展示状态。本次登录中实际提交的最近决定只在客户端内存保留。
 - **工具投影缺失，待服务端协调**：在隔离 mock 8788 新建会话 `mobile-tools-smoke-1792053047670`，发送「写入工具投影验收」，确认 `/api/actions/pending` 出现该会话的写入审批并通过决定端点拒绝（200）。实际 SSE 仅有 `RUN_STARTED/TEXT_MESSAGE_*/RUN_FINISHED`，没有 `TOOL_CALL_*`；随后权威历史也只有 user 与 assistant 文本，没有 toolCalls/tool 消息。浏览器批准与拒绝流程同样能执行，但聊天专用工具卡缺少可消费的事件与历史。期望工具执行时发出 AG-UI 工具事件，历史保留调用与结果投影。移动端不猜测助手回复来还原工具调用；前一轮固定数据卡片验收继续有效，真实工具卡全链路保持阻塞。本仓库未修改服务端。
+
+## 全量回归的联调边界（2026-10-16）
+
+- **监控 HTTP 全链路缺可控 fixture**：本轮隔离 mock 工作区没有监控条目，`tests/support/fake-model.ts` 提供了 schedule/memory/write 等固定触发分支，但没有 monitor 触发分支；不能仅发送监控文案就宣称已创建并验收。客户端演示模式的创建、暂停、恢复、停止与超过三条折叠已实测，HTTP 控制请求契约已有自动化测试；真实 HTTP 监控控制仍需服务端提供可控监控 fixture 或在授权真实模型环境联调，不是控制端点已确认失败。
+- 工具投影、天气结构化与会话标题等历史协调项没有因演示通过而解除；本轮没有调用真实远程模型，也没有修改服务端源码或配置。

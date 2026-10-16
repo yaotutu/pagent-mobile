@@ -1,12 +1,4 @@
-/**
- * API 客户端契约层：定义客户端与服务端交互的统一接口 + SSE 分帧解析。
- *
- * 职责边界（按"先 UI → mock → 接口"的开发流程）：
- * - 本文件只定形状与纯函数，不含任何网络实现；
- * - mock 阶段由 mock-api.ts 实现本接口（内存数据 + 假事件流）；
- * - 接口阶段由 http-api.ts 实现并替换（expo/fetch + Bearer token）。
- */
-
+/** 页面依赖的客户端契约；网络实现不向上泄露传输细节。 */
 import type {
   AgentTask,
   AgUiEvent,
@@ -17,20 +9,10 @@ import type {
   Identity,
   MemoryItem,
   Monitor,
-  TaskEvent,
+  TaskDetails,
   ThreadInfo,
   WorkspaceSnapshot,
 } from './types';
-
-/** 统一错误：status 为 HTTP 状态码（401 时上层清 token 回登录门）。 */
-export class ApiError extends Error {
-  readonly status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-    this.name = 'ApiError';
-  }
-}
 
 /** 增量聊天只提交一条新用户消息；历史与工具消息始终由服务端持有。 */
 export type RunInput = {
@@ -44,7 +26,6 @@ export type RunInput = {
 
 /**
  * 客户端接口：页面只依赖此抽象，不感知 mock/HTTP 差异。
- * 工作台操作（任务控制/目标/记忆/审批）在第 4 步页面落地时按需补充方法。
  */
 export interface ApiClient {
   /** POST /api/session → {token, mode}；token 24h 有效 */
@@ -69,7 +50,7 @@ export interface ApiClient {
   /** 创建后台任务（立即排队执行） */
   createTask(prompt: string, title?: string): Promise<AgentTask>;
   /** 任务详情（含时间线 events） */
-  getTask(id: string): Promise<{ task: AgentTask; events: TaskEvent[] }>;
+  getTask(id: string): Promise<TaskDetails>;
   /**
    * 控制任务：target=job（定时）或 task（后台），必须显式传入。
    * 以快照 task.kind 为准，禁止依赖服务端默认分发。
@@ -128,34 +109,3 @@ export type IdentityInput = {
   showChatUpdates?: boolean;
 };
 export type Profile = { soul: string; user: string };
-
-/**
- * SSE 分帧解析（纯函数）：吃进增量缓冲，吐出完整帧内解析出的 JSON 事件
- * 与剩余未闭合缓冲。翻译自 personal-bot web/src/lib/api.ts：
- * 事件流以空行（LF 或 CRLF）分帧，帧内逐行取 "data: " 前缀的 JSON 载荷；
- * 非 JSON 帧忽略（协议错误由 RUN_ERROR 事件表达，不在此抛错）。
- * 接口阶段的 http-api.ts 把 expo/fetch 的 ReadableStream 增量喂给它。
- */
-export function parseSseFrames(buffer: string): { events: AgUiEvent[]; rest: string } {
-  const events: AgUiEvent[] = [];
-  let rest = buffer;
-  for (;;) {
-    // 只消费完整空行，不预先替换换行符：CRLF 的 \r 与 \n 可能分属两次读取，
-    // 必须将未闭合尾部原样交还调用方，待下个 chunk 拼接后再判断边界。
-    const boundary = /\r?\n\r?\n/.exec(rest);
-    if (!boundary) break;
-    const frame = rest.slice(0, boundary.index);
-    rest = rest.slice(boundary.index + boundary[0].length);
-    for (const line of frame.split(/\r?\n/)) {
-      if (!line.startsWith('data: ')) continue;
-      const payload = line.slice(6).trim();
-      if (!payload) continue;
-      try {
-        events.push(JSON.parse(payload) as AgUiEvent);
-      } catch {
-        // 非 JSON 帧忽略
-      }
-    }
-  }
-  return { events, rest };
-}

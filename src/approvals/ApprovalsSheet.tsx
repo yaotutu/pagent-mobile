@@ -3,7 +3,7 @@
  *
  * 协议约束：
  * - 只有 pending 可决定，成功后本地保留返回状态，避免快照更新前重复决定；
- * - pending 5 分钟不决定自动 expired（轮询快照自然呈现）；
+ * - 有效期以服务端 expiresAt 为准，不在客户端猜测过期时间；
  * - payload 键名服务端文档未定义（docs/notes.md 待澄清），
  *   此处按 Record<string,string> 通用遍历渲染，不猜测语义。
  */
@@ -11,10 +11,16 @@
 import { FileText } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useApi } from '../lib/api-context';
-import { timeAgo } from '../lib/format';
-import type { ApprovalNotification } from '../lib/types';
-import { Button, Empty, IconBox, Sheet, StatusBadge } from '../ui/components';
+import { useDemo } from '../demo/DemoProvider';
+import { FilterPills } from '../ui/FilterPills';
+import { useApi } from '../api/ApiProvider';
+import { timeAgo } from '../shared/format';
+import type { ApprovalNotification } from '../api/types';
+import { Button } from '../ui/Buttons';
+import { Empty } from '../ui/Feedback';
+import { IconBox } from '../ui/Surfaces';
+import { Sheet } from '../ui/Sheet';
+import { StatusBadge } from '../shared/StatusBadge';
 import { colors, radius, sizing, spacing, typography } from '../ui/tokens';
 
 export function ApprovalsSheet({
@@ -29,6 +35,9 @@ export function ApprovalsSheet({
   onDecided: (decision: ApprovalNotification) => void;
 }) {
   const api = useApi();
+  const demo = useDemo();
+  const [filter, setFilter] = useState<'all' | 'pending' | 'history'>('all');
+  const [, updateRead] = useState(0);
   const [busyId, setBusyId] = useState<string>();
   const deciding = useRef(false);
   const decidedIds = useRef(new Set<string>());
@@ -36,7 +45,7 @@ export function ApprovalsSheet({
 
   // Shell 合并当前 pending 与本次登录内已确认决定，关闭再打开也可查看最近操作。
   const pending = notifications.filter((n) => n.status === 'pending');
-  const settled = notifications.filter((n) => n.status !== 'pending').slice(0, 10);
+  const settled = notifications.filter((n) => n.status !== 'pending');
 
   const decide = async (id: string, decision: 'approve' | 'deny') => {
     // state 禁用按钮要等渲染；同步锁额外阻止同一帧的连点和批准/拒绝交叉提交。
@@ -59,11 +68,15 @@ export function ApprovalsSheet({
 
   return (
     <Sheet
-      title="审批"
+      title="通知与审批"
       subtitle={pending.length ? `${pending.length} 项待处理` : '没有待处理事项'}
       onClose={onClose}
     >
       <View style={{ gap: spacing[14] }}>
+        <FilterPills value={filter} onChange={setFilter} options={[{ value: 'all', label: '全部' }, { value: 'pending', label: `待审批 ${pending.length}` }, { value: 'history', label: '最近决定' }]} />
+        <Text style={{ ...typography.small, color: colors.muted }}>{demo ? '演示记录仅保存在本次工作区，批准不会执行真实写入。' : '最近决定仅保留本次登录已确认的操作，服务端暂不提供完整历史。'}</Text>
+        {filter === 'pending' && pending.length === 0 && <Text style={{ ...typography.muted, color: colors.muted }}>所有待审批事项都处理完了。</Text>}
+        {filter === 'history' && settled.length === 0 && <Text style={{ ...typography.muted, color: colors.muted }}>本次工作区还没有审批决定。</Text>}
         {error ? (
           <Text style={{ ...typography.small, color: colors.danger }}>{error}</Text>
         ) : null}
@@ -74,26 +87,17 @@ export function ApprovalsSheet({
             detail="助手请求写入或编辑文件时，会先在这里征求你的同意。"
           />
         ) : null}
-        {pending.map((item) => (
+        {filter !== 'history' && pending.map((item) => (
           <ApprovalCard key={item.id} item={item} busy={busyId === item.id} disabled={busyId !== undefined} onDecide={decide} />
         ))}
-        {settled.length > 0 && (
+        {filter !== 'pending' && settled.length > 0 && (
           <View style={{ gap: spacing[9] }}>
             <Text style={styles.sectionLabel}>最近决定</Text>
             {settled.map((item) => (
-              <View key={item.id} style={[styles.row, { gap: spacing[10] }]}>
-                <IconBox icon={FileText} size={sizing[28]} iconSize={sizing[14]} tint={colors.subtle} />
-                <View style={{ flex: 1, gap: spacing[2] }}>
-                  <Text style={{ ...typography.text, color: colors.ink }} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  {item.decidedAt ? (
-                    <Text style={{ ...typography.small, color: colors.muted }}>
-                      {timeAgo(item.decidedAt)}
-                    </Text>
-                  ) : null}
-                </View>
-                <StatusBadge status={item.status} />
+              <View key={item.id} style={{ gap: spacing.xs }}>
+                <ApprovalCard item={item} onDecide={decide} />
+                {demo && !demo.client.isApprovalRead(item.id) && <Button small onPress={() => { demo.client.markApprovalRead(item.id); updateRead((value) => value + 1); }}>标为已读</Button>}
+                {demo?.client.isApprovalRead(item.id) && <Text style={{ ...typography.small, color: colors.muted }}>已读</Text>}
               </View>
             ))}
           </View>
@@ -125,7 +129,7 @@ function ApprovalCard({
             {item.title}
           </Text>
           <Text style={{ ...typography.small, color: colors.muted }}>
-            {item.kind === 'file_write' ? '写入' : '编辑'} · {timeAgo(item.createdAt)} · 5 分钟内有效
+            {item.kind === 'file_write' ? '写入' : '编辑'} · {timeAgo(item.createdAt)}{item.expiresAt ? ` · 有效至 ${new Date(item.expiresAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
           </Text>
         </View>
         <StatusBadge status={item.status} />
@@ -143,14 +147,14 @@ function ApprovalCard({
       <Button small onPress={() => setExpanded((previous) => !previous)}>
         {expanded ? '收起内容' : '展开完整内容'}
       </Button>
-      <View style={[styles.row, { justifyContent: 'flex-end', gap: spacing[8] }]}>
+      {item.status === 'pending' && <View style={[styles.row, { justifyContent: 'flex-end', gap: spacing[8] }]}>
         <Button small danger busy={busy} disabled={disabled} onPress={() => onDecide(item.id, 'deny')}>
           拒绝
         </Button>
         <Button small primary busy={busy} disabled={disabled} onPress={() => onDecide(item.id, 'approve')}>
           批准
         </Button>
-      </View>
+      </View>}
     </View>
   );
 }

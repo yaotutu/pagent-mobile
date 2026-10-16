@@ -3,10 +3,10 @@
  * 手动刷新与定时刷新复用同一在途请求；请求完成后再计时，不引入状态库。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ApiClient } from './api';
-import type { WorkspaceSnapshot } from './types';
+import type { ApiClient } from '../api/contracts';
+import type { WorkspaceSnapshot } from '../api/types';
 
-export function useSnapshotPolling(api: ApiClient, enabled: boolean, intervalMs = 5000) {
+export function useWorkspaceSnapshot(api: ApiClient, enabled: boolean, intervalMs = 5000) {
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>();
   const [error, setError] = useState<string>();
   const generation = useRef(0);

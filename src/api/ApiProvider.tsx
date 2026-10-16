@@ -1,9 +1,9 @@
 /**
  * ApiClient 注入点：App 顶层挂一次，页面经 useApi() 取用。
- * mock 阶段注入 MockApiClient，接口阶段替换为 HttpApiClient，页面代码不动。
+ * 页面只读取客户端契约，具体传输实现由入口注入。
  */
 import { createContext, useContext, type ReactNode } from 'react';
-import type { ApiClient } from './api';
+import type { ApiClient } from './contracts';
 
 const ApiContext = createContext<ApiClient | null>(null);
 

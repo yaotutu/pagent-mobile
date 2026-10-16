@@ -56,7 +56,7 @@ stdout 输出 `version=X.Y.Z` / `versionCode=N` / `buildNumber=N`，CI 里 `>> "
 
 ### CI workflow（push / PR 触发）
 
-- `npx tsc --noEmit` + `npx expo lint` + `npm test`（28 项）守住质量门槛
+- `npx tsc --noEmit` + `npx expo lint` + `npm test` 守住质量门槛（测试数量以当前运行结果为准）
 - **Version-field 守卫**（核心）：检测 `app.json` 的 `expo.version` / `expo.android.versionCode` / `expo.ios.buildNumber` 三字段在 PR / push 的 diff 里被改 → fail。这是版本号规则不被打破的唯一手段，**任何 agent 接手都不能跳过这个守卫**
 
 ### Release workflow（push to main 触发）

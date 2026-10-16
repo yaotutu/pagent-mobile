@@ -171,6 +171,13 @@ export const layout = {
   toastMaxWidth: 560,
   /** 空状态说明文字最大宽度 */
   emptyTextMaxWidth: 360,
+  topBarHeight: 122,
+  topBarDesktopHeight: 146,
+  contentPadding: 22,
+  contentDesktopPadding: 42,
+  chatPadding: 17,
+  chatLatestBottom: 96,
+  toastBottom: 94,
 } as const;
 
 /** 布局间距集中声明；精确数值键保留既有视觉规格，常用语义键便于复用。 */
@@ -263,6 +270,8 @@ export const sizing = {
   360: 360,
   /** 常用触控命中区 */
   touchTarget: 44,
+  avatar: 49,
+  avatarDesktop: 58,
   /** 小图标 */
   iconSmall: 15,
   /** 中图标 */

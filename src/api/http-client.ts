@@ -19,14 +19,12 @@ import type {
   Identity,
   MemoryItem,
   Monitor,
-  TaskEvent,
+  TaskDetails,
   ThreadInfo,
   WorkspaceSnapshot,
   WorkspaceData,
 } from './types';
 import {
-  ApiError,
-  parseSseFrames,
   type ApiClient,
   type ApprovalDecision,
   type GoalInput,
@@ -36,7 +34,9 @@ import {
   type RunInput,
   type TaskAction,
   type TaskControlTarget,
-} from './api';
+} from './contracts';
+import { ApiError } from './errors';
+import { parseSseFrames } from './sse';
 
 export class HttpApiClient implements ApiClient {
   constructor(
@@ -171,8 +171,8 @@ export class HttpApiClient implements ApiClient {
     });
   }
 
-  async getTask(id: string): Promise<{ task: AgentTask; events: TaskEvent[] }> {
-    return this.request<{ task: AgentTask; events: TaskEvent[] }>(`/api/agent/tasks/${encodeURIComponent(id)}`);
+  async getTask(id: string): Promise<TaskDetails> {
+    return this.request<TaskDetails>(`/api/agent/tasks/${encodeURIComponent(id)}`);
   }
 
   async controlTask(id: string, action: TaskAction, target: TaskControlTarget): Promise<AgentTask> {

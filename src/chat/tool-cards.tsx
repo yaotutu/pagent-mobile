@@ -10,11 +10,12 @@
 import { FileText, Globe, Clock, CloudSun, CalendarClock, Activity, ListTodo, type LucideIcon } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { IconBox } from '../ui/components';
+import { useDemo } from '../demo/DemoProvider';
+import { IconBox } from '../ui/Surfaces';
 import { colors, layout, radius, sizing, spacing, typography } from '../ui/tokens';
 import type { ToolCallView } from './chat-state';
 import { z } from 'zod';
-import { parseToolRecord, toolOutcome, toolTextField } from './tool-presentation';
+import { parseToolRecord, toolOutcome, toolResultContent, toolTextField } from './tool-presentation';
 
 /** 回调由 Shell 注入，工具卡不持有导航状态，也不会卸载正在运行的聊天。 */
 export type ToolCardActions = {
@@ -75,7 +76,7 @@ function CollapsibleText({ text, lines = 3 }: { text?: string; lines?: number })
   const [open, setOpen] = useState(false);
   if (!text) return null;
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((previous) => !previous)}>
+    <Pressable accessibilityRole="button" aria-expanded={open} onPress={() => setOpen((previous) => !previous)}>
       <Text style={styles.mono} numberOfLines={open ? undefined : lines}>
         {text}
       </Text>
@@ -98,7 +99,7 @@ registerToolCard('*', (call) => <WildcardCard call={call} />);
 
 // 工具结果是外部输入，不因 JSON 语法合法就信任结构；畸形/截断结果回退原文。
 const searchResultSchema = z.object({
-  results: z.array(z.object({ title: z.string().optional(), url: z.string().optional() })),
+  results: z.array(z.object({ title: z.string().optional(), url: z.string().optional(), snippet: z.string().optional() })),
 });
 
 // ---------------------------------------------------------------------------
@@ -108,7 +109,7 @@ const searchResultSchema = z.object({
 /** search_web：来源链接列表（仅 http/https 可点，其余按纯文本渲染） */
 registerToolCard('search_web', (call) => {
   const query = toolTextField(parseToolRecord(call.args), 'query');
-  let results: { title?: string; url?: string }[] = [];
+  let results: { title?: string; url?: string; snippet?: string }[] = [];
   try {
     const parsed = searchResultSchema.safeParse(JSON.parse(call.result ?? ''));
     results = parsed.success ? parsed.data.results : [];
@@ -124,7 +125,7 @@ registerToolCard('search_web', (call) => {
             const safe = /^https?:\/\//.test(url);
             const row = (
               <View style={{ gap: spacing[1] }}>
-                <Text style={{ ...typography.small, fontWeight: '600', color: colors.ink }} numberOfLines={1}>
+                <Text style={{ ...typography.text, fontWeight: '600', color: colors.ink }} numberOfLines={2}>
                   {index + 1}. {item.title ?? url}
                 </Text>
                 <Text
@@ -133,10 +134,11 @@ registerToolCard('search_web', (call) => {
                 >
                   {url}
                 </Text>
+                {!!item.snippet && <Text style={{ ...typography.small, color: colors.muted }} numberOfLines={2}>{item.snippet}</Text>}
               </View>
             );
             return safe ? (
-              <Pressable key={url + index} onPress={() => void Linking.openURL(url).catch(() => {})}>
+              <Pressable key={url + index} accessibilityRole="link" onPress={() => void Linking.openURL(url).catch(() => {})}>
                 {row}
               </Pressable>
             ) : (
@@ -169,7 +171,7 @@ for (const name of ['write', 'edit']) {
         <Text style={{ ...typography.small, color: colors.muted }}>
           {done ? '执行已结束，请核对结果；审批决定见审批列表' : '执行中；如需审批，请打开审批列表'}
         </Text>
-        <CollapsibleText text={call.result} />
+        <CollapsibleText text={toolTextField(parseToolRecord(call.result ?? ''), 'message') || call.result} />
         <ToolAction label="查看审批" onPress={actions.onOpenApprovals} />
       </ToolFrame>
     );
@@ -186,23 +188,36 @@ const workspaceTools = [
   { name: 'delegate_task', title: '后台任务', icon: ListTodo, target: 'activity' },
 ] as const;
 workspaceTools.forEach(({ name, title, icon, target }) => {
-  registerToolCard(name, (call, actions) => (
-    <ToolFrame icon={icon} title={title} meta={outcomeLabels[toolOutcome(call.result)]}>
-      <CollapsibleText text={call.args} lines={2} />
-      <CollapsibleText text={call.result} />
+  registerToolCard(name, (call, actions) => {
+    const args = parseToolRecord(call.args);
+    const { summary: resultSummary, failure, fallback } = toolResultContent(call.result);
+    const summary = resultSummary || toolTextField(args, 'title', 'text', 'prompt', 'url');
+    return <ToolFrame icon={icon} title={title} meta={outcomeLabels[toolOutcome(call.result)]}>
+      {!!summary && <Text style={{ ...typography.text, color: colors.ink }} numberOfLines={3}>{summary}</Text>}
+      {!!failure && <Text style={{ ...typography.muted, color: colors.danger }}>{failure}</Text>}
+      <CollapsibleText text={fallback} />
       <ToolAction label={target === 'apps' ? '查看记忆' : '查看任务与监控'} onPress={() => actions.onNavigate(target)} />
-    </ToolFrame>
-  ));
+    </ToolFrame>;
+  });
 });
 
-/** 天气当前只有文本契约：专用展示保留来源、观测时间和错误，结构化字段待服务端补充。 */
-registerToolCard('get_weather', (call) => (
-  <ToolFrame icon={CloudSun} title="天气" meta={toolTextField(parseToolRecord(call.args), 'city') || '默认城市'}>
-    {call.result === undefined
+const demoWeatherSchema = z.object({ location: z.string(), temperature: z.number().finite(), condition: z.string(), low: z.number().finite(), high: z.number().finite(), humidity: z.number().finite(), wind: z.string() });
+
+function WeatherCard({ call }: { call: ToolCallView }) {
+  const demo = useDemo();
+  const parsed = demo ? demoWeatherSchema.safeParse(parseToolRecord(call.result ?? '')) : undefined;
+  return <ToolFrame icon={CloudSun} title="天气" meta={toolTextField(parseToolRecord(call.args), 'city', 'location') || '默认城市'}>
+    {parsed?.success ? <View style={{ gap: spacing.sm }}>
+      <Text style={{ ...typography.display, color: colors.ink }}>{parsed.data.temperature}°</Text>
+      <Text style={{ ...typography.text, color: colors.ink }}>{parsed.data.location} · {parsed.data.condition}</Text>
+      <Text style={{ ...typography.muted, color: colors.muted }}>{parsed.data.low}° — {parsed.data.high}° · {parsed.data.wind}</Text>
+      <Text style={{ ...typography.small, color: colors.muted }}>湿度 {parsed.data.humidity}% · 演示天气，非实时预报</Text>
+    </View> : call.result === undefined
       ? <Text style={styles.title}>正在查询天气…</Text>
       : <CollapsibleText text={call.result} lines={8} />}
-  </ToolFrame>
-));
+  </ToolFrame>;
+}
+registerToolCard('get_weather', (call) => <WeatherCard call={call} />);
 
 /** 文件/网页结果可能很长且包含不可信内容；只按文本预览，不执行、不作为 URL 打开。 */
 const previewTools = [
@@ -215,15 +230,15 @@ previewTools.forEach(([name, title]) => registerToolCard(name, (call) => (
     <CollapsibleText text={call.args} lines={2} />
     {call.result === undefined
       ? <Text style={styles.title}>加载中…</Text>
-      : <CollapsibleText text={call.result} />}
+      : <CollapsibleText text={toolTextField(parseToolRecord(call.result ?? ''), 'content', 'text') || call.result} />}
   </ToolFrame>
 )));
 
 /** currentTime：单行轻量卡 */
-registerToolCard('currentTime', () => (
+registerToolCard('currentTime', (call) => (
   <View style={[styles.frame, styles.row]}>
     <IconBox icon={Clock} size={sizing[26]} iconSize={sizing[14]} tint={colors.card} />
-    <Text style={{ ...typography.small, color: colors.muted }}>查询当前时间</Text>
+    <Text style={{ ...typography.small, color: colors.muted, flexShrink: 1 }}>{call.result ?? '正在查询当前时间…'}</Text>
   </View>
 ));
 
