@@ -35,64 +35,163 @@ import {
   type TaskAction,
   type TaskControlTarget,
 } from './contracts';
-import { ApiError } from './errors';
+import { ApiError, isRequestCancelled, requestCancelled } from './errors';
 import { parseSseFrames } from './sse';
 
+export type TransportState = { kind: 'online' | 'offline'; token?: string; error?: string };
+export type HttpApiOptions = { onTransportState?: (state: TransportState) => void; timeoutMs?: number; headerTimeoutMs?: number };
+type RequestControl = {
+  controller: AbortController;
+  generation: number;
+  timedOut: () => boolean;
+  stopTimeout: () => void;
+  finish: () => void;
+  assertActive: () => void;
+};
+
 export class HttpApiClient implements ApiClient {
+  private generation = 0;
+  private retired = false;
+  private paused = false;
+  private pending = new Set<AbortController>();
+  private activeRuns = new Set<{ threadId: string; runId: string; token?: string }>();
+
   constructor(
     private readonly baseUrl: string,
-    /** 取当前 token（登录前为 undefined，请求不带 Authorization 头） */
     private readonly getToken: () => string | undefined,
-    /** 401 回调：上层清 token 回登录门 */
-    private readonly onUnauthorized: () => void,
+    private readonly onUnauthorized: (token?: string) => void,
+    private readonly options: HttpApiOptions = {},
   ) {}
+
+  private control(timeoutMs: number, external?: AbortSignal): RequestControl {
+    const controller = new AbortController();
+    const generation = this.generation;
+    let timeout = false;
+    const abort = () => controller.abort();
+    external?.addEventListener('abort', abort, { once: true });
+    if (external?.aborted) controller.abort();
+    const timer = setTimeout(() => {
+      if (!controller.signal.aborted) { timeout = true; controller.abort(); }
+    }, timeoutMs);
+    this.pending.add(controller);
+    return {
+      controller, generation,
+      timedOut: () => timeout,
+      stopTimeout: () => clearTimeout(timer),
+      finish: () => { clearTimeout(timer); external?.removeEventListener('abort', abort); this.pending.delete(controller); },
+      assertActive: () => {
+        if (timeout) throw new ApiError(408, '请求超时，操作结果可能已生效，请刷新核对后再操作');
+        if (controller.signal.aborted || generation !== this.generation) throw requestCancelled();
+      },
+    };
+  }
+
+  private notify(control: RequestControl, state: TransportState) {
+    if (!this.retired && control.generation === this.generation) this.options.onTransportState?.(state);
+  }
+
+  private failure(error: unknown, control: RequestControl, token?: string): Error {
+    if (!control.timedOut() && (control.controller.signal.aborted || isRequestCancelled(error))) return requestCancelled();
+    const result = control.timedOut()
+      ? new ApiError(408, '请求超时，操作结果可能已生效，请刷新核对后再操作')
+      : error instanceof SyntaxError ? new ApiError(502, '服务器响应格式不正确，请确认服务器地址')
+        : error instanceof ApiError ? error
+          : new ApiError(0, '无法连接服务器，请检查地址、网络或重定向设置后重试');
+    if (!(result instanceof ApiError) || result.status === 0 || result.status === 408 || result.status >= 500) {
+      this.notify(control, { kind: 'offline', token, error: result.message });
+    }
+    return result;
+  }
+
+  /** 取消只是中断本地消费，远端停止始终以原URL及精确runId尽力通知。 */
+  cancelPending() {
+    const runs = [...this.activeRuns];
+    this.generation++;
+    for (const controller of this.pending) controller.abort();
+    for (const run of runs) {
+      void this.request('/api/conversation/stop', { method: 'POST', body: { threadId: run.threadId, runId: run.runId }, tokenOverride: { value: run.token } }).catch(() => {});
+    }
+  }
+
+  suspend() {
+    this.paused = true;
+    this.cancelPending();
+  }
+
+  resume() {
+    if (!this.retired) this.paused = false;
+  }
+
+  retire() {
+    this.retired = true;
+    this.cancelPending();
+  }
 
   private async request<T>(
     path: string,
-    init?: { method?: string; body?: unknown },
+    init?: { method?: string; body?: unknown; anonymous?: boolean; tokenOverride?: { value?: string }; signal?: AbortSignal },
   ): Promise<T> {
-    const token = this.getToken();
-    const response = await expoFetch(`${this.baseUrl}${path}`, {
-      method: init?.method ?? 'GET',
-      headers: {
-        ...(init?.body !== undefined ? { 'content-type': 'application/json' } : {}),
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      },
-      body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-    });
-    if (response.status === 401) {
-      this.onUnauthorized();
-      throw new ApiError(401, '登录已过期，请重新登录');
-    }
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      let message = `请求失败 (${response.status})`;
-      try {
-        const data = JSON.parse(text) as { error?: string };
-        if (data.error) message = data.error;
-      } catch {
-        // 非 JSON 错误体，保留通用文案
+    if ((this.retired || this.paused) && path !== '/api/conversation/stop') throw requestCancelled();
+    const token = init?.anonymous ? undefined : init?.tokenOverride ? init.tokenOverride.value : this.getToken();
+    const control = this.control(this.options.timeoutMs ?? 15_000, init?.signal);
+    try {
+      control.assertActive();
+      const response = await expoFetch(`${this.baseUrl}${path}`, {
+        method: init?.method ?? 'GET',
+        headers: {
+          ...(init?.body !== undefined ? { 'content-type': 'application/json' } : {}),
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+        signal: control.controller.signal,
+        redirect: 'error',
+      });
+      control.assertActive();
+      if (response.status === 401) {
+        if (!init?.anonymous && !this.retired && control.generation === this.generation) this.onUnauthorized(token);
+        throw new ApiError(401, '当前凭证未被服务器接受，请重新认证');
       }
-      throw new ApiError(response.status, message);
+      if (!response.ok) {
+        const text = await response.text();
+        control.assertActive();
+        let message = `请求失败 (${response.status})`;
+        try {
+          const data = JSON.parse(text) as { error?: unknown };
+          if (typeof data.error === 'string') message = data.error;
+        } catch { /* 非JSON错误正文不替代HTTP状态。 */ }
+        throw new ApiError(response.status, message);
+      }
+      const data = await response.json() as T;
+      control.assertActive();
+      if (!init?.anonymous) this.notify(control, { kind: 'online', token });
+      return data;
+    } catch (error) {
+      throw this.failure(error, control, token);
+    } finally {
+      control.finish();
     }
-    return (await response.json()) as T;
   }
 
   async createSession(accessKey?: string): Promise<{ token: string; mode: string }> {
-    // 登录时无 token，请求不带 Authorization 头
-    return this.request<{ token: string; mode: string }>('/api/session', {
-      method: 'POST',
-      body: accessKey ? { accessKey } : {},
+    const session = await this.request<{ token: string; mode: string }>('/api/session', {
+      method: 'POST', body: accessKey ? { accessKey } : {}, anonymous: true,
     });
+    if (typeof session?.token !== 'string' || !/^[A-Za-z0-9._~+\/-]+=*$/.test(session.token) || typeof session.mode !== 'string') {
+      throw new ApiError(502, '服务器没有返回有效会话，请确认地址是否为 Pagent 服务');
+    }
+    return session;
   }
 
-  async listThreads(): Promise<ThreadInfo[]> {
-    const data = await this.request<{ threads: ThreadInfo[] }>('/api/threads');
+  async listThreads(signal?: AbortSignal): Promise<ThreadInfo[]> {
+    const data = await this.request<{ threads: ThreadInfo[] }>('/api/threads', { signal });
+    if (!Array.isArray(data?.threads) || data.threads.some((item) => typeof item?.id !== 'string' || typeof item?.updatedAt !== 'string')) {
+      throw new ApiError(502, '服务器没有返回有效会话列表，请确认服务器地址');
+    }
     return data.threads;
   }
 
-  async getConversation(threadId: string): Promise<ConversationSnapshot> {
-    return this.request<ConversationSnapshot>(`/api/conversation?threadId=${encodeURIComponent(threadId)}`);
+  async getConversation(threadId: string, signal?: AbortSignal): Promise<ConversationSnapshot> {
+    return this.request<ConversationSnapshot>(`/api/conversation?threadId=${encodeURIComponent(threadId)}`, { signal });
   }
 
   async runAgent(
@@ -100,50 +199,62 @@ export class HttpApiClient implements ApiClient {
     onEvent: (event: import('./types').AgUiEvent) => void,
     signal?: AbortSignal,
   ): Promise<void> {
+    if (this.retired || this.paused) throw requestCancelled();
     const token = this.getToken();
-    const response = await expoFetch(`${this.baseUrl}/api/conversation/run`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      },
-      // 当前 OpenAPI 只接受增量请求；不回写助手/工具历史，也不发送 SDK 透传字段。
-      body: JSON.stringify(input),
-      signal,
-    });
-    if (response.status === 401) {
-      this.onUnauthorized();
-      throw new ApiError(401, '登录已过期，请重新登录');
-    }
-    if (!response.ok) {
-      // 冲突由历史版本或当前运行状态引起，提示用户同步后重试，不自动重放可能已执行的操作。
-      if (response.status === 409) throw new ApiError(409, '会话状态已更新或仍在运行，请重新加载后重试');
-      const data = await response.json().catch(() => undefined) as { error?: unknown } | undefined;
-      throw new ApiError(response.status, typeof data?.error === 'string' ? data.error : `请求失败 (${response.status})`);
-    }
-    if (!response.body) throw new ApiError(response.status, '回复连接未返回数据流');
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let terminal = false;
+    const control = this.control(this.options.headerTimeoutMs ?? this.options.timeoutMs ?? 15_000, signal);
+    const run = { threadId: input.threadId, runId: input.runId, token };
+    this.activeRuns.add(run);
+    let callbackFailed = false;
     try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const { events, rest } = parseSseFrames(buffer);
-        buffer = rest;
-        for (const event of events) {
-          if (event.type === 'RUN_FINISHED' || event.type === 'RUN_ERROR') terminal = true;
-          onEvent(event);
-        }
+      control.assertActive();
+      const response = await expoFetch(`${this.baseUrl}/api/conversation/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(input), signal: control.controller.signal, redirect: 'error',
+      });
+      control.assertActive();
+      if (response.status === 401) {
+        if (!this.retired && control.generation === this.generation) this.onUnauthorized(token);
+        throw new ApiError(401, '当前凭证未被服务器接受，请重新认证');
       }
-      // 正常结束必须有协议终止事件；断网 EOF 不能伪装成成功完成。
-      if (!terminal && !signal?.aborted) throw new Error('回复连接意外中断，请重新加载会话后重试');
+      if (!response.ok) {
+        if (response.status === 409) throw new ApiError(409, '会话状态已更新或仍在运行，请重新加载后重试');
+        const data = await response.json().catch(() => undefined) as { error?: unknown } | undefined;
+        control.assertActive();
+        throw new ApiError(response.status, typeof data?.error === 'string' ? data.error : `请求失败 (${response.status})`);
+      }
+      if (!response.body) throw new ApiError(502, '回复连接未返回数据流');
+      // 只限制握手等待，已经建立的模型长流不按整轮时长超时。
+      control.stopTimeout();
+      this.notify(control, { kind: 'online', token });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let terminal = false;
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          control.assertActive();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const { events, rest } = parseSseFrames(buffer);
+          buffer = rest;
+          for (const event of events) {
+            if (event.type === 'RUN_FINISHED' || event.type === 'RUN_ERROR') terminal = true;
+            try { onEvent(event); } catch (error) { callbackFailed = true; throw error; }
+          }
+        }
+        if (!terminal) throw new ApiError(0, '回复连接意外中断，请重新加载会话后重试');
+      } finally {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
+    } catch (error) {
+      if (callbackFailed) throw error;
+      throw this.failure(error, control, token);
     } finally {
-      // 回调异常或主动取消时也归还 reader，避免遗留原生流资源。
-      await reader.cancel().catch(() => {});
-      reader.releaseLock();
+      this.activeRuns.delete(run);
+      control.finish();
     }
   }
 
@@ -155,12 +266,15 @@ export class HttpApiClient implements ApiClient {
     return data.stopped;
   }
 
-  async getSnapshot(): Promise<WorkspaceSnapshot> {
+  async getSnapshot(signal?: AbortSignal): Promise<WorkspaceSnapshot> {
     // 工作区快照不包含审批正文；两端点属于同一轮刷新，任一失败都不提交半份新状态。
     const [workspace, pending] = await Promise.all([
-      this.request<WorkspaceData>('/api/agent'),
-      this.request<{ actions: ApprovalNotification[] }>('/api/actions/pending'),
+      this.request<WorkspaceData>('/api/agent', { signal }),
+      this.request<{ actions: ApprovalNotification[] }>('/api/actions/pending', { signal }),
     ]);
+    if (!workspace || !['tasks', 'goals', 'monitors', 'memories'].every((key) => Array.isArray(workspace[key as keyof WorkspaceData])) || typeof workspace.identity?.name !== 'string' || typeof workspace.identity?.tone !== 'string' || typeof workspace.worker?.running !== 'boolean' || !Array.isArray(pending?.actions)) {
+      throw new ApiError(502, '服务器工作区响应格式不正确，请确认服务器版本与地址');
+    }
     return { ...workspace, notifications: pending.actions };
   }
 

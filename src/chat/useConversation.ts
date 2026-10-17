@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../api/ApiProvider';
+import { isRequestCancelled } from '../api/errors';
+import { useServiceConnection } from '../connection/ConnectionProvider';
 import { StreamAggregator, projectHistory, type MessageView } from './chat-state';
 
 /** 单次挂载仅服务一个 thread；父级以 threadId 为 key 隔离旧流与历史。 */
 export function useConversation(threadId: string) {
   const api = useApi();
+  const connection = useServiceConnection();
+  const enabled = connection?.enabled ?? true;
+  const refreshVersion = connection?.snapshot.refreshVersion ?? 0;
+  const enabledRef = useRef(enabled);
   const [views, setViews] = useState<MessageView[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>();
@@ -29,34 +35,43 @@ export function useConversation(threadId: string) {
     };
   }, [api, threadId]);
 
+  useEffect(() => {
+    enabledRef.current = enabled;
+    if (!enabled) abortRef.current?.abort();
+  }, [enabled]);
+
   // 历史与版本未成功加载前禁止发送，避免以旧版本覆盖其他设备的新消息。
   useEffect(() => {
+    if (!enabled || abortRef.current) return;
     let alive = true;
-    api
-      .getConversation(threadId)
-      .then((history) => {
+    const controller = new AbortController();
+    void (async () => {
+      await Promise.resolve();
+      if (!alive) return;
+      setLoading(true);
+      try {
+        const history = await api.getConversation(threadId, controller.signal);
         if (alive) {
           revisionRef.current = history.revision;
           setViews(projectHistory(history.messages));
           setHistoryFailed(false);
           setError(undefined);
         }
-      })
-      .catch((e) => {
-        if (alive) {
+      } catch (e) {
+        if (alive && !isRequestCancelled(e)) {
           setHistoryFailed(true);
           setError(e instanceof Error ? e.message : String(e));
         }
-      })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => {
-      alive = false;
-    };
-  }, [api, threadId, historyVersion]);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; controller.abort(); };
+  }, [api, threadId, historyVersion, enabled, refreshVersion]);
 
   const send = async (raw: string, onAccepted: () => void, onFailure: (text: string) => void) => {
     const text = raw.trim();
-    if (!text || loading || historyFailed || abortRef.current || !revisionRef.current) return;
+    if (!enabled || !text || loading || historyFailed || abortRef.current || !revisionRef.current) return;
     onAccepted();
     setError(undefined);
     const controller = new AbortController();
@@ -92,25 +107,31 @@ export function useConversation(threadId: string) {
         controller.signal,
       );
       try {
+        if (!enabledRef.current) {
+          aggregator.settle();
+          if (aliveRef.current) { setViews([...aggregator.messages]); setHistoryFailed(true); }
+          return;
+        }
         const history = await api.getConversation(threadId);
         if (aliveRef.current) {
           revisionRef.current = history.revision;
           setViews(projectHistory(history.messages));
         }
-      } catch {
+      } catch (syncError) {
         // 权威历史拉取失败：保留聚合视图（已验证的降级路径）
         aggregator.settle();
         if (aliveRef.current) {
           setViews([...aggregator.messages]);
           // 内容可以保留展示，但没有新版本不能安全发送下一轮。
           setHistoryFailed(true);
-          setError('回复已结束，但会话同步失败，请重新加载后继续');
+          if (!isRequestCancelled(syncError)) setError('回复已结束，但会话同步失败，请重新加载后继续');
         }
       }
     } catch (e) {
       aggregator.settle();
       if (aliveRef.current) setViews([...aggregator.messages]);
-      if (aliveRef.current && controller.signal.aborted) {
+      if (aliveRef.current && (controller.signal.aborted || isRequestCancelled(e))) {
+        if (!enabledRef.current) { setHistoryFailed(true); return; }
         // 停止也可能已落盘部分回复；恢复服务端历史与版本后才允许发送下一轮。
         try {
           const history = await api.getConversation(threadId);
@@ -118,10 +139,10 @@ export function useConversation(threadId: string) {
             revisionRef.current = history.revision;
             setViews(projectHistory(history.messages));
           }
-        } catch {
+        } catch (syncError) {
           if (aliveRef.current) {
             setHistoryFailed(true);
-            setError('停止后无法同步会话，请重新加载');
+            if (!isRequestCancelled(syncError)) setError('停止后无法同步会话，请重新加载');
           }
         }
       } else if (aliveRef.current) {
@@ -157,5 +178,5 @@ export function useConversation(threadId: string) {
     setLoading(true);
     setHistoryVersion((value) => value + 1);
   };
-  return { views, running, error, loading, historyFailed, send, stop, reload };
+  return { views, running, error, loading: loading || !enabled, historyFailed, send, stop, reload };
 }

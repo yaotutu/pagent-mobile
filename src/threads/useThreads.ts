@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import { isRequestCancelled } from '../api/errors';
 import { useApi } from '../api/ApiProvider';
 import type { ThreadInfo } from '../api/types';
 import { useDemo } from '../demo/DemoProvider';
 import { MAIN_THREAD, mainThread, newThread } from './thread-state';
 
-export function useThreads() {
+export function useThreads(enabled = true, refreshVersion = 0) {
   const api = useApi();
   const demo = useDemo();
   const [threads, setThreads] = useState<ThreadInfo[]>([]);
@@ -14,12 +15,14 @@ export function useThreads() {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return;
     let alive = true;
-    api.listThreads()
+    const controller = new AbortController();
+    api.listThreads(controller.signal)
       .then((items) => { if (alive) { setThreads(items); setError(undefined); } })
-      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : String(e)); });
-    return () => { alive = false; };
-  }, [api, attempt]);
+      .catch((e) => { if (alive && !isRequestCancelled(e)) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { alive = false; controller.abort(); };
+  }, [api, attempt, enabled, refreshVersion]);
 
   const createThread = () => {
     const thread = newThread();

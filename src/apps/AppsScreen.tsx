@@ -1,12 +1,15 @@
 // 编辑器按入口互斥挂载，关闭弹层即丢弃未保存草稿。
 
-import { Bot, Brain, ChevronRight, FileText, type LucideIcon } from 'lucide-react-native';
+import { Bot, Brain, ChevronRight, FileText, Server, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { MemoryItem, WorkspaceSnapshot } from '../api/types';
+import { useServiceConnection } from '../connection/ConnectionProvider';
 import { Sheet } from '../ui/Sheet';
 import { Card, IconBox } from '../ui/Surfaces';
 import { colors, sizing, spacing, typography } from '../ui/tokens';
+import { UpdateEntry } from '../update/UpdateEntry';
+import { useAppUpdate } from '../update/UpdateProvider';
 import { IdentityCard } from './IdentityCard';
 import { MemoryCard } from './MemoryCard';
 import { ProfileCard } from './ProfileCard';
@@ -35,6 +38,8 @@ export function AppsScreen({
   refresh: () => void;
 }) {
   const [open, setOpen] = useState<Entry>();
+  const connection = useServiceConnection();
+  const update = useAppUpdate();
   const memories = snapshot?.memories ?? [];
   const identity = snapshot?.identity;
 
@@ -70,8 +75,20 @@ export function AppsScreen({
 
   return (
     <View style={{ gap: spacing.lg }}>
+      {connection?.snapshot.serverUrl && <Card>
+        <Pressable accessibilityRole="button" onPress={connection.changeServer} style={styles.row}>
+          <IconBox icon={Server} size={sizing[36]} tint={colors.sky} />
+          <View style={styles.rowText}>
+            <Text style={{ ...typography.text, fontWeight: '600', color: colors.ink }}>服务器连接</Text>
+            <Text style={{ ...typography.small, color: colors.muted }} numberOfLines={2}>{connection.snapshot.serverUrl}</Text>
+            <Text style={{ ...typography.small, color: colors.muted }}>{connection.snapshot.status === 'offline' ? '连接失败，可原址重试或主动更改' : '当前唯一服务器 · 点击更改'}</Text>
+          </View>
+          <ChevronRight size={sizing[15]} color={colors.muted} />
+        </Pressable>
+      </Card>}
+      {update && <UpdateEntry snapshot={update.snapshot} onPress={update.open} />}
       {/* 入口列表装在一张卡里：行间用发丝线分隔，卡外不再套第二层卡。 */}
-      <Card style={{ paddingVertical: spacing[6] }}>
+      {snapshot && <Card style={{ paddingVertical: spacing[6] }}>
         {rows.map((row, index) => (
           <Pressable
             key={row.key}
@@ -95,7 +112,7 @@ export function AppsScreen({
             <ChevronRight size={sizing[15]} color={colors.muted} />
           </Pressable>
         ))}
-      </Card>
+      </Card>}
 
       {/* Sheet 统一关闭：任一入口关闭都只回到列表页，弹层内草稿状态随之卸载。 */}
       {open === 'identity' && (

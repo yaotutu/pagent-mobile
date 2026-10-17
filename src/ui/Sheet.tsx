@@ -14,6 +14,7 @@ import { X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOverlayVisibility } from './overlay-visibility';
 import { IconButton } from './Buttons';
 import { colors, layout, radius, sizing, spacing, typography } from './tokens';
 
@@ -32,6 +33,7 @@ export function Sheet({
   wide?: boolean;
 }) {
   const { width } = useWindowDimensions();
+  const visible = useOverlayVisibility();
   const insets = useSafeAreaInsets();
   const compact = width < layout.sheetCompactBreakpoint;
   return (
@@ -39,8 +41,7 @@ export function Sheet({
       accessibilityLabel={title}
       transparent
       animationType={compact ? 'slide' : 'fade'}
-      visible
-      onRequestClose={onClose}
+      visible={visible}      onRequestClose={onClose}
     >
       <View style={[styles.shade, compact && { padding: 0, justifyContent: 'flex-end' }]}>
         <View

@@ -19,6 +19,8 @@ import {
 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Avatar } from '../ui/Avatar';
+import { ConnectionBanner } from '../connection/ConnectionBanner';
+import { useServiceConnection } from '../connection/ConnectionProvider';
 import { DemoBanner } from '../demo/DemoBanner';
 import { useDemo } from '../demo/DemoProvider';
 import {
@@ -94,6 +96,7 @@ export function AppShell({
   const [threadsOpen, setThreadsOpen] = useState(false);
   const [approvalsOpen, setApprovalsOpen] = useState(false);
   const demo = useDemo();
+  const connection = useServiceConnection();
   const { notifications: liveNotifications, recordDecision } = useApprovalDecisions(snapshot?.notifications);
   const notifications = demo ? [...(snapshot?.notifications ?? []), ...demo.client.approvalHistory()] : liveNotifications;
   const [chatRunning, setChatRunning] = useState(false);
@@ -133,7 +136,8 @@ export function AppShell({
         </View>
 
         <DemoBanner />
-        <ErrorNotice error={snapshotError ? `工作区刷新失败：${snapshotError}` : undefined} />
+        <ConnectionBanner />
+        <ErrorNotice error={snapshotError && !['offline', 'connecting'].includes(connection?.snapshot.status ?? '') ? `工作区刷新失败：${snapshotError}` : undefined} />
         {/* 单会话 chat 在 tab 间常驻；切换 thread 用 key 卸载，阻断旧流回写。 */}
         <View style={{ flex: 1, minHeight: 0 }}>
           {view !== 'chat' && (
@@ -150,7 +154,7 @@ export function AppShell({
               {!snapshot && <Text style={{ ...typography.muted, color: colors.muted }}>{snapshotError ? '暂时无法连接工作区，请重试刷新。' : '正在载入工作区…'}</Text>}
               {snapshot && view === 'activity' && <ActivityScreen snapshot={snapshot} refresh={refresh} />}
               {snapshot && view === 'goals' && <GoalsScreen snapshot={snapshot} refresh={refresh} />}
-              {snapshot && view === 'apps' && <AppsScreen snapshot={snapshot} refresh={refresh} />}
+              {view === 'apps' && <AppsScreen snapshot={snapshot} refresh={refresh} />}
             </ScrollView>
           )}
           <View

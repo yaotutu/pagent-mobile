@@ -1,7 +1,8 @@
-import { Archive, Check, ChevronRight, FlaskConical, ListChecks, MessageCircle, Pencil, Plus, RefreshCw, Shapes, SquareCheck } from 'lucide-react-native';
+import { Archive, Check, ChevronRight, FlaskConical, ListChecks, MessageCircle, Pencil, Plus, RefreshCw, Server, Shapes, SquareCheck } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ThreadInfo } from '../api/types';
+import { useServiceConnection } from '../connection/ConnectionProvider';
 import { useDemo } from '../demo/DemoProvider';
 import { Button } from '../ui/Buttons';
 import { ErrorNotice } from '../ui/Feedback';
@@ -16,6 +17,7 @@ export function ThreadsSheet({ threads, currentThread, onSelectThread, onCreateT
   onNavigate: (destination: Destination) => void; refresh: () => void; onDemo: () => void;
 }) {
   const demo = useDemo();
+  const connection = useServiceConnection();
   const [archived, setArchived] = useState(false);
   const [editing, setEditing] = useState<string>();
   const [title, setTitle] = useState('');
@@ -68,7 +70,8 @@ export function ThreadsSheet({ threads, currentThread, onSelectThread, onCreateT
             <Icon size={sizing[20]} color={colors.ink} /><Text style={[styles.title, { flex: 1 }]}>{label}</Text><ChevronRight size={sizing[18]} color={colors.muted} />
           </Pressable>)}
           <Button icon={RefreshCw} onPress={() => { refresh(); onRetry(); }}>刷新工作区</Button>
-          {!demo && <Button icon={FlaskConical} onPress={onDemo}>体验独立演示工作区</Button>}
+          {connection && <Button icon={Server} onPress={() => { onClose(); connection.changeServer(); }}>更改服务器</Button>}
+          {!demo && <Button icon={FlaskConical} onPress={() => { onClose(); onDemo(); }}>体验独立演示工作区</Button>}
         </View>
       </View>
     </Sheet>

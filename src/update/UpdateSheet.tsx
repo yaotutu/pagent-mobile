@@ -1,0 +1,307 @@
+// 收起弹层不取消后台持有的下载任务。
+
+import { StyleSheet, Text, View } from 'react-native';
+import { Button } from '../ui/Buttons';
+import { ErrorNotice } from '../ui/Feedback';
+import { Sheet } from '../ui/Sheet';
+import { Card } from '../ui/Surfaces';
+import { colors, spacing, typography } from '../ui/tokens';
+import type { UpdateSheetProps, UpdateSnapshot } from './types';
+
+export function UpdateSheet({
+  snapshot,
+  onClose,
+  onCheck,
+  onCancel,
+  onInstall,
+  onRetryDownload,
+  onOpenSettings,
+}: UpdateSheetProps) {
+  const subtitle = buildSubtitle(snapshot);
+  return (
+    <Sheet title="应用更新" subtitle={subtitle} onClose={onClose}>
+      <View style={{ gap: spacing.lg }}>
+        <StatusBlock snapshot={snapshot} />
+
+        <ErrorNotice error={snapshot.error} />
+
+        {/* 后台/返回场景下由父级注入的提示语（snapshot.message），例如"下载已在后台完成"。 */}
+        {!!snapshot.message && (
+          <Card>
+            <Text style={styles.notice}>{snapshot.message}</Text>
+          </Card>
+        )}
+
+        <Card>
+          <Text style={styles.notice}>
+            自动下载会使用当前网络，可能消耗移动流量。系统安装可能重启应用，请先保存未完成的编辑。
+          </Text>
+        </Card>
+
+        <Actions
+          snapshot={snapshot}
+          {...{ onCheck, onCancel, onInstall, onRetryDownload, onOpenSettings }}
+        />
+      </View>
+    </Sheet>
+  );
+}
+
+function StatusBlock({ snapshot }: { snapshot: UpdateSnapshot }) {
+  switch (snapshot.status) {
+    case 'unsupported':
+      return (
+        <Card>
+          <Text style={styles.heading}>当前环境不支持自动更新</Text>
+          <Text style={styles.detail}>{snapshot.unsupportedReason ?? '请关闭页面后手动安装更新。'}</Text>
+        </Card>
+      );
+    case 'idle':
+      return (
+        <Card>
+          <Text style={styles.heading}>尚未检查更新</Text>
+          <Text style={styles.detail}>轻点下方按钮立即检查。</Text>
+        </Card>
+      );
+    case 'checking':
+      return (
+        <Card>
+          <Text style={styles.heading}>正在检查更新…</Text>
+          <Text style={styles.detail}>请稍候。</Text>
+        </Card>
+      );
+    case 'current':
+      return (
+        <Card>
+          <Text style={styles.heading}>已是最新版本</Text>
+          <Text style={styles.detail}>{versionLine(snapshot)}</Text>
+        </Card>
+      );
+    case 'downloading': {
+      const { mbText, percentText } = progressText(snapshot.bytesWritten, snapshot.totalBytes);
+      return (
+        <Card>
+          <Text style={styles.heading}>正在下载更新</Text>
+          <Text style={styles.detail}>
+            已下载 {mbText}
+            {percentText} · 安装包大小约 {totalSizeText(snapshot)}
+          </Text>
+          <Text style={styles.hint}>下载过程中可继续使用应用。</Text>
+        </Card>
+      );
+    }
+    case 'ready':
+      return (
+        <Card>
+          <Text style={styles.heading}>安装包已下载</Text>
+          <Text style={styles.detail}>
+            {snapshot.installAttempted ? '安装尚未确认完成，可继续安装。' : '返回应用前台后将打开系统安装界面。'}
+          </Text>
+        </Card>
+      );
+    case 'installing':
+      return (
+        <Card>
+          <Text style={styles.heading}>正在请求系统安装</Text>
+          <Text style={styles.detail}>请等待系统安装器返回结果。</Text>
+        </Card>
+      );
+    case 'cancelled':
+      return (
+        <Card>
+          <Text style={styles.heading}>已取消本次下载</Text>
+          <Text style={styles.detail}>如需重试可重新检查或直接重试下载。</Text>
+        </Card>
+      );
+    case 'error':
+      return (
+        <Card>
+          <Text style={styles.heading}>更新出错</Text>
+          <Text style={styles.detail}>{stageHint(snapshot.errorStage)}</Text>
+        </Card>
+      );
+  }
+}
+
+/** busy 时整体防重复点；"取消检查/下载"是用户中途止损口，故意不锁。 */
+function Actions({
+  snapshot,
+  onCheck,
+  onCancel,
+  onInstall,
+  onRetryDownload,
+  onOpenSettings,
+}: {
+  snapshot: UpdateSnapshot;
+  onCheck: () => void;
+  onCancel: () => void;
+  onInstall: () => void;
+  onRetryDownload: () => void;
+  onOpenSettings: () => void;
+}) {
+  const lock = snapshot.busy;
+  const hasRelease = !!snapshot.release;
+
+  switch (snapshot.status) {
+    case 'unsupported':
+      // Web / iOS / ExpoGo 没有此能力，只展示说明，关闭 Sheet 即可。
+      return null;
+    case 'idle':
+      return (
+        <Button onPress={onCheck} primary disabled={lock}>
+          立即检查更新
+        </Button>
+      );
+    case 'checking':
+      return (
+        <Button onPress={onCancel}>
+          取消检查
+        </Button>
+      );
+    case 'current':
+      return (
+        <Button onPress={onCheck} disabled={lock}>
+          再次检查
+        </Button>
+      );
+    case 'downloading':
+      return (
+        <Button onPress={onCancel}>
+          取消下载
+        </Button>
+      );
+    case 'ready':
+      return (
+        <View style={{ gap: spacing.sm }}>
+          <Button onPress={onInstall} primary disabled={lock}>
+            继续安装
+          </Button>
+          <Button onPress={onOpenSettings} disabled={lock}>
+            安装授权设置
+          </Button>
+          <Button onPress={onRetryDownload} disabled={lock}>
+            重新下载
+          </Button>
+          <Button onPress={onCheck} disabled={lock}>
+            重新检查
+          </Button>
+        </View>
+      );
+    case 'installing':
+      // 安装 job 正在系统侧，授权按钮点了也无效，仅展示状态。
+      return null;
+    case 'cancelled':
+      return (
+        <View style={{ gap: spacing.sm }}>
+          {hasRelease && (
+            <Button onPress={onRetryDownload} primary disabled={lock}>
+              重试下载
+            </Button>
+          )}
+          <Button onPress={onCheck} disabled={lock}>
+            重新检查
+          </Button>
+        </View>
+      );
+    case 'error':
+      switch (snapshot.errorStage) {
+        case 'check':
+          // 没有 release 时不该给"重试下载"，否则会无目标地下发。
+          return (
+            <Button onPress={onCheck} primary disabled={lock}>
+              重新检查
+            </Button>
+          );
+        case 'download':
+          return (
+            <Button onPress={onRetryDownload} primary disabled={lock}>
+              重试下载
+            </Button>
+          );
+        case 'install':
+          return (
+            <View style={{ gap: spacing.sm }}>
+              <Button onPress={onInstall} primary disabled={lock}>
+                继续安装
+              </Button>
+              <Button onPress={onOpenSettings} disabled={lock}>
+                安装授权设置
+              </Button>
+              <Button onPress={onRetryDownload} disabled={lock}>
+                重新下载
+              </Button>
+              <Button onPress={onCheck} disabled={lock}>
+                重新检查
+              </Button>
+            </View>
+          );
+        default:
+          return (
+            <View style={{ gap: spacing.sm }}>
+              {hasRelease && (
+                <Button onPress={onRetryDownload} primary disabled={lock}>
+                  重试下载
+                </Button>
+              )}
+              <Button onPress={onCheck} disabled={lock}>
+                重新检查
+              </Button>
+            </View>
+          );
+      }
+  }
+}
+
+function buildSubtitle(snapshot: UpdateSnapshot): string {
+  const cur = snapshot.currentVersion ?? '未知';
+  const target = snapshot.release?.version;
+  return target ? `当前 ${cur} → 目标 ${target}` : `当前版本 ${cur}`;
+}
+
+function versionLine(snapshot: UpdateSnapshot): string {
+  const cur = snapshot.currentVersion ?? '未知';
+  const target = snapshot.release?.version;
+  return target && target !== cur ? `${cur}（最新 ${target}）` : cur;
+}
+
+function totalSizeText(snapshot: UpdateSnapshot): string {
+  const size = snapshot.release?.size;
+  if (typeof size === 'number' && size > 0) {
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return '未知';
+}
+
+function progressText(
+  bytesWritten: number,
+  totalBytes?: number,
+): { mbText: string; percentText: string } {
+  const mb = bytesWritten / (1024 * 1024);
+  const mbText = `${mb.toFixed(1)} MB`;
+  let percentText = '';
+  if (typeof totalBytes === 'number' && totalBytes > 0) {
+    const pct = Math.min(100, Math.round((bytesWritten / totalBytes) * 100));
+    percentText = ` (${pct}%)`;
+  }
+  return { mbText, percentText };
+}
+
+function stageHint(stage: UpdateSnapshot['errorStage']): string {
+  switch (stage) {
+    case 'check':
+      return '检查更新时遇到问题，请稍后重试。';
+    case 'download':
+      return '下载过程中遇到问题，可重试下载。';
+    case 'install':
+      return '请求系统安装时未获授权，请前往系统设置开启"安装未知应用"权限。';
+    default:
+      return '请稍后重试。';
+  }
+}
+
+const styles = StyleSheet.create({
+  heading: { ...typography.heading, fontWeight: '600', color: colors.ink },
+  detail: { ...typography.text, color: colors.muted, marginTop: spacing.xs },
+  hint: { ...typography.muted, color: colors.muted, marginTop: spacing.sm },
+  notice: { ...typography.muted, color: colors.muted },
+});

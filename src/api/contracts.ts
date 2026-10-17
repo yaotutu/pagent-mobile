@@ -28,12 +28,12 @@ export type RunInput = {
  * 客户端接口：页面只依赖此抽象，不感知 mock/HTTP 差异。
  */
 export interface ApiClient {
-  /** POST /api/session → {token, mode}；token 24h 有效 */
+  /** POST /api/session → {token, mode}；客户端不按时间过期，失效以服务端401为准。 */
   createSession(accessKey?: string): Promise<{ token: string; mode: string }>;
   /** GET /api/threads（按活跃倒序） */
-  listThreads(): Promise<ThreadInfo[]>;
+  listThreads(signal?: AbortSignal): Promise<ThreadInfo[]>;
   /** GET /api/conversation?threadId= 权威历史（只读，不回写） */
-  getConversation(threadId: string): Promise<ConversationSnapshot>;
+  getConversation(threadId: string, signal?: AbortSignal): Promise<ConversationSnapshot>;
   /** 发起一轮对话：SSE 流式回调 AG-UI 事件；signal 中断即停止消费 */
   runAgent(
     input: RunInput,
@@ -43,7 +43,7 @@ export interface ApiClient {
   /** 只停止指定运行；迟到停止返回 false，不影响下一轮。 */
   stopRun(threadId: string, runId: string): Promise<boolean>;
   /** GET /api/agent 全量快照（顶栏状态/审批/工作台页共用） */
-  getSnapshot(): Promise<WorkspaceSnapshot>;
+  getSnapshot(signal?: AbortSignal): Promise<WorkspaceSnapshot>;
 
   // --- 任务（POST /api/agent/tasks 系列） ---
 

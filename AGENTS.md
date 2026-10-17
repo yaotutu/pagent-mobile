@@ -91,6 +91,18 @@ stdout 输出 `version=X.Y.Z` / `versionCode=N` / `buildNumber=N`，CI 里 `>> "
 
 iOS 构建、OTA 自动更新、Play Store 自动上架。后期接 OTA 时再单独开规范。
 
+### Android APK 更新边界（与 OTA 严格区分）
+
+更新模块 `src/update/` 由 `src/app/AppRoot.tsx` 根级持有，独立于服务端鉴权与 `EXPO_PUBLIC_API_BASE_URL`，不读、不缓存、不上报用户服务地址。
+
+- 检测源：公开 GitHub `yaotutu/pagent-mobile` 的 `releases/latest`，仅识别稳定正式 `app-release.apk`；预发布 / draft / 其它 asset 不纳入。
+- 触发时机：冷启动及 Android 前台按一小时间隔检查，回到前台超过间隔也检查。手动入口：应用页「应用更新」、连接页「检查应用更新」。
+- 下载 / 安装：发现新版自动下载，进度可收起继续使用应用，完成后自动唤起系统安装器；不提供额外下载确认 / 应用层 checksum / 校验页；系统签名校验、未知来源授权、最终安装确认必须保留（不静默安装）；本次会话取消安装后留包可继续安装，系统清理缓存后需重下；下载可取消、失败可重试。
+- 进程与流量：OS 杀后台后下载不保证继续，仅前台唤起安装；下载消耗用户网络流量。
+- 平台边界：仅 Android 独立包生效，Expo Go / Web / iOS 不支持 APK 安装，**不等同于 Expo OTA**。
+- 首次接入：用户必须先手动安装一次含更新模块的版本，后续版本才走自动检测。
+- 现行 release（v1.0.5 起为正式签名）已通过 GitHub Actions 流水线产出，详见 `README.md` 的更新章节与 CI/CD 章节；CI 强约束（版本号守卫 / Android 签名 / Release workflow）本节不调整。
+
 ---
 
 以下为 Expo 官方工程指南（模板自带，仍然适用）：
