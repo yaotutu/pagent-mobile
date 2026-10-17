@@ -2,13 +2,13 @@
   "expo": {
     "name": "Pagent",
     "slug": "pagent-mobile",
-    "version": "1.0.10",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "10"
+      "buildNumber": "11"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
         "android.permission.REQUEST_INSTALL_PACKAGES"
       ],
       "package": "com.yaotutu.pagentmobile",
-      "versionCode": 10
+      "versionCode": 11
     },
     "web": {
       "favicon": "./assets/favicon.png"
