@@ -167,6 +167,6 @@ test('错误服务/畸形会话和会话列表不能被当成连接成功', asyn
   for (const payload of [{ token: '', mode: 'live' }, { token: 'bad\r\ntoken', mode: 'live' }, { token: 'token' }]) {
     await withFetch(async () => json(payload), async () => assert.rejects(api.createSession(), (e) => e.status === 502));
   }
-  await withFetch(async () => new Response('<html>not Pagent</html>'), async () => assert.rejects(api.createSession(), (e) => e.status === 502));
+  await withFetch(async () => new Response('<html>not Pi Muse</html>'), async () => assert.rejects(api.createSession(), (e) => e.status === 502));
   await withFetch(async () => json({ threads: [{ id: 'a' }] }), async () => assert.rejects(api.listThreads(), (e) => e.status === 502));
 });

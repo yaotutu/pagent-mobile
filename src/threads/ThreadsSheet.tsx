@@ -26,7 +26,7 @@ export function ThreadsSheet({ threads, currentThread, onSelectThread, onCreateT
   const sideThreads = all.filter((thread) => thread.id !== 'local-main' && thread.archived === archived);
   const select = (id: string) => { onSelectThread(id); onClose(); };
   return (
-    <Sheet title="Pagent" subtitle="你的个人助理工作区" onClose={onClose}>
+    <Sheet title="Pi Muse" subtitle="你的个人助理工作区" onClose={onClose}>
       <View style={{ gap: spacing.lg }}>
         <ErrorNotice error={error} />
         {error && <Button onPress={onRetry}>重新加载会话</Button>}

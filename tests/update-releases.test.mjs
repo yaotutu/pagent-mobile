@@ -35,7 +35,7 @@ const buildValidRelease = (overrides = {}) => ({
     name: 'app-release.apk',
     size: 7890,
     browser_download_url:
-      'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
   }],
   ...overrides,
 });
@@ -45,7 +45,7 @@ const buildValidRelease = (overrides = {}) => ({
 test('LATEST_RELEASE_URL 锁定 GitHub Releases API 官方地址', () => {
   assert.equal(
     LATEST_RELEASE_URL,
-    'https://api.github.com/repos/yaotutu/pagent-mobile/releases/latest',
+    'https://api.github.com/repos/yaotutu/pi-muse-mobile/releases/latest',
   );
 });
 
@@ -97,7 +97,7 @@ test('parseRelease: 正式 release 解析为精简字段并去除 v 前缀', () 
     assetId: 456,
     version: '1.2.3',
     size: 7890,
-    url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+    url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
   });
 });
 
@@ -124,7 +124,7 @@ test('parseRelease: assets 多于一个抛错（必须唯一）', () => {
     name: 'app-release.apk',
     size: 100,
     browser_download_url:
-      'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
   });
   assert.throws(() => parseRelease(release));
 });
@@ -141,7 +141,7 @@ test('parseRelease: asset id 非正整数抛错', () => {
       id: 0,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
   assert.throws(() => parseRelease(buildValidRelease({
@@ -149,7 +149,7 @@ test('parseRelease: asset id 非正整数抛错', () => {
       id: -1,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
 });
@@ -164,7 +164,7 @@ test('parseRelease: asset size 非正整数抛错', () => {
       id: 456,
       name: 'app-release.apk',
       size: 0,
-      browser_download_url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
 });
@@ -175,7 +175,7 @@ test('parseRelease: download URL host 错误抛错', () => {
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://evil.example.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'https://evil.example.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
 });
@@ -186,7 +186,7 @@ test('parseRelease: download URL 使用 HTTP 抛错', () => {
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'http://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'http://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
 });
@@ -197,7 +197,7 @@ test('parseRelease: download URL 路径错误（用户名不对）抛错', () =>
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://github.com/attacker/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'https://github.com/attacker/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
 });
@@ -219,7 +219,7 @@ test('parseRelease: download URL 路径里 tag 与 tag_name 不一致抛错', ()
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v9.9.9/app-release.apk',
+      browser_download_url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v9.9.9/app-release.apk',
     }],
   })));
 });
@@ -230,7 +230,7 @@ test('parseRelease: download URL 非默认端口抛错', () => {
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://github.com:8443/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'https://github.com:8443/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
 });
@@ -241,7 +241,7 @@ test('parseRelease: download URL 含 query 抛错', () => {
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk?token=x',
+      browser_download_url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk?token=x',
     }],
   })));
 });
@@ -252,7 +252,7 @@ test('parseRelease: download URL 含 hash 抛错', () => {
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk#frag',
+      browser_download_url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk#frag',
     }],
   })));
 });
@@ -263,7 +263,7 @@ test('parseRelease: download URL 含 username:password 抛错', () => {
       id: 456,
       name: 'app-release.apk',
       size: 7890,
-      browser_download_url: 'https://user:pass@github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      browser_download_url: 'https://user:pass@github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     }],
   })));
 });
@@ -304,7 +304,7 @@ test('getLatestRelease: 正式 release 200 返回精简结构', async () => {
       assetId: 456,
       version: '1.2.3',
       size: 7890,
-      url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.2.3/app-release.apk',
+      url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.2.3/app-release.apk',
     });
   });
 });

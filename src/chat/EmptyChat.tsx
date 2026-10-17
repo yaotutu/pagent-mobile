@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, sizing, spacing, typography } from '../ui/tokens';
 
-const SUGGESTIONS = ['搜一下 pagent', '记住我喜欢早起', '把待办写入 notes.md'];
+const SUGGESTIONS = ['搜一下 pi muse', '记住我喜欢早起', '把待办写入 notes.md'];
 
 /** 空态：大标题 + 建议 prompt */
 export function EmptyChat({ onPick }: { onPick: (text: string) => void }) {

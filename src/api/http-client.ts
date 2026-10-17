@@ -177,7 +177,7 @@ export class HttpApiClient implements ApiClient {
       method: 'POST', body: accessKey ? { accessKey } : {}, anonymous: true,
     });
     if (typeof session?.token !== 'string' || !/^[A-Za-z0-9._~+\/-]+=*$/.test(session.token) || typeof session.mode !== 'string') {
-      throw new ApiError(502, '服务器没有返回有效会话，请确认地址是否为 Pagent 服务');
+      throw new ApiError(502, '服务器没有返回有效会话，请确认地址是否为 Pi Muse 服务');
     }
     return session;
   }

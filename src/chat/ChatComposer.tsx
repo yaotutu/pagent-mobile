@@ -42,7 +42,7 @@ export function ChatComposer({ input, setInput, running, loading, historyFailed,
               onSend();
             }
           } : undefined}
-          placeholder="和 Pagent 说说…"
+          placeholder="和 Pi Muse 说说…"
           placeholderTextColor={colors.muted}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}

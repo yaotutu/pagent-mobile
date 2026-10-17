@@ -7,7 +7,7 @@ import { getLatestRelease } from './releases';
 import type { AppRelease } from './types';
 import type { UpdateDependencies } from './update-manager';
 
-const APP_PACKAGE = 'com.yaotutu.pagentmobile';
+const APP_PACKAGE = 'com.yaotutu.pimusemobile';
 const DOWNLOAD_STALL_MS = 60_000;
 
 function cancelled() {
@@ -25,11 +25,11 @@ export async function downloadApk(
   if (signal.aborted) throw cancelled();
   const directory = new Directory(Paths.cache, 'app-updates');
   directory.create({ intermediates: true, idempotent: true });
-  const destination = new File(directory, `pagent-${release.assetId}.apk`);
+  const destination = new File(directory, `pi-muse-${release.assetId}.apk`);
   if (!force && destination.exists) return destination.uri;
   // 此目录仅属于安装包下载，不与服务器配置或业务缓存共用。
   for (const entry of directory.list()) entry.delete();
-  const temporary = new File(directory, `pagent-${release.assetId}.part`);
+  const temporary = new File(directory, `pi-muse-${release.assetId}.part`);
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal.addEventListener('abort', abort, { once: true });
@@ -89,7 +89,7 @@ export function createUpdateDependencies(): UpdateDependencies {
     supported,
     unsupportedReason: Platform.OS !== 'android'
       ? '当前平台不支持 Android APK 应用内更新，请使用 Android 安装包'
-      : !standalone ? 'Expo Go 不支持 Pagent APK 更新，请先安装 Pagent Android 安装包' : '无法读取当前安装包版本，请重新安装正式版本',
+      : !standalone ? 'Expo Go 不支持 Pi Muse APK 更新，请先安装 Pi Muse Android 安装包' : '无法读取当前安装包版本，请重新安装正式版本',
     getLatestRelease,
     download: downloadApk,
     fileExists: (uri) => new File(uri).exists,

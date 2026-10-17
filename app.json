@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Pagent",
-    "slug": "pagent-mobile",
+    "name": "Pi Muse",
+    "slug": "pi-muse-mobile",
     "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,7 +21,7 @@
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES"
       ],
-      "package": "com.yaotutu.pagentmobile",
+      "package": "com.yaotutu.pimusemobile",
       "versionCode": 11
     },
     "web": {

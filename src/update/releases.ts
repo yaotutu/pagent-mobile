@@ -1,7 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AppRelease } from './types';
 
-export const RELEASE_REPOSITORY = 'yaotutu/pagent-mobile';
+export const RELEASE_REPOSITORY = 'yaotutu/pi-muse-mobile';
 export const LATEST_RELEASE_URL = `https://api.github.com/repos/${RELEASE_REPOSITORY}/releases/latest`;
 const APK_NAME = 'app-release.apk';
 const CHECK_TIMEOUT_MS = 15_000;

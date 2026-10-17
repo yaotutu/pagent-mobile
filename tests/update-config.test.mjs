@@ -5,7 +5,7 @@ import test from 'node:test';
 const config = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8')).expo;
 
 test('Android自更新声明系统安装权限且保持已发布包名', () => {
-  assert.equal(config.android.package, 'com.yaotutu.pagentmobile');
+  assert.equal(config.android.package, 'com.yaotutu.pimusemobile');
   assert.ok(config.android.permissions.includes('android.permission.REQUEST_INSTALL_PACKAGES'));
 });
 

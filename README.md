@@ -1,6 +1,6 @@
-# pagent-mobile
+# pi-muse-mobile
 
-Pagent 的官方移动客户端（iOS / Android / 平板）。Expo + React Native + TypeScript，UI 参考 OpenMuse，代码全自研。
+Pi Muse 的官方移动客户端（iOS / Android / 平板）。Expo + React Native + TypeScript，UI 参考 OpenMuse，代码全自研。
 
 ## 离线体验界面
 
@@ -17,7 +17,7 @@ Pagent 的官方移动客户端（iOS / Android / 平板）。Expo + React Nativ
 
 - **唯一当前服务器 URL**：从登录页表单输入，原生走 `expo-secure-store`，Web 调试走 `localStorage`。
 - **可选 Key**：表单内存（不写入存储），随当前 URL 一起提交 `POST /api/session`。
-- **持久化字段**：单条 `{serverUrl, token?, resetPending?}`，**地址与 Token 绑定保存在同一记录**。旧 `pagent-token` 单值无地址不能猜归属——首次切换需重新输入 URL 与 Key。
+- **持久化字段**：单条 `{serverUrl, token?, resetPending?}`，**地址与 Token 绑定保存在同一记录**（键名 `pi-muse-connection`）。
 - **Token 永久**：客户端不解析 `exp`、不计时过期、不主动续期；服务端稍后同步永久 Token 模型，前端不再以 24h 文档作为阻塞。
 - **错误重试**：网络、超时、5xx 保留当前 token 和工作区草稿，只在原地址原址重试；明确 401 仅清凭据并回到原址登录，不清业务数据。
 - **更改服务器**：进入独立"更改服务器"页，测试或取消不保存。规范化后若与旧地址不同，保存前二次确认"清本地业务数据与旧凭据"；允许离线保存新地址，不沿用旧 Token。实际清理函数预留 `src/connection/cache-reset.ts` 的 `clearLocalWorkspaceData`（async 空实现），先写 `resetPending` journal，清理成功再放行，失败可重启恢复。
@@ -34,10 +34,10 @@ Pagent 的官方移动客户端（iOS / Android / 平板）。Expo + React Nativ
 cd ~/Desktop/code/personal-bot && pnpm dev:mock
 
 # 2. 启动本地 Web 联调代理（8791 → 127.0.0.1:8788，并注入 CORS 响应头）
-cd ~/Desktop/code/pagent-mobile && npm run proxy
+cd ~/Desktop/code/pi-muse-mobile && npm run proxy
 
 # 3. 启动 Expo Web（固定端口 8082，避开 OpenMuse 的 8081）
-cd ~/Desktop/code/pagent-mobile && npm run web
+cd ~/Desktop/code/pi-muse-mobile && npm run web
 ```
 
 启动原生调试运行 `npx expo start`，需要开发构建时再运行 `npx expo run:ios` 或 `npx expo run:android`。2026-10-17连接配置回归通过127项自动化测试、68条浏览器交互断言、Android API36 / Expo Go SDK57原生连接流程，以及三平台生产JS/Hermes导出；iOS运行、正式签名包/物理真机和实际后端永久Token同步尚未验收，详见 `docs/HANDOFF.md`。
@@ -58,7 +58,7 @@ cd ~/Desktop/code/pagent-mobile && npm run web
 
 ## Android应用更新
 
-本项目通过 GitHub Releases 提供 APK 形式的 Android 更新，详情由 `src/app/AppRoot.tsx` 根级独立更新模块负责，与服务端 Token / Key 完全解耦。检测源固定为公开仓库 `yaotutu/pagent-mobile` 的 `releases/latest`，仅识别其中稳定 `app-release.apk`。
+本项目通过 GitHub Releases 提供 APK 形式的 Android 更新，详情由 `src/app/AppRoot.tsx` 根级独立更新模块负责，与服务端 Token / Key 完全解耦。检测源固定为公开仓库 `yaotutu/pi-muse-mobile` 的 `releases/latest`，仅识别其中稳定 `app-release.apk`。
 
 行为边界：
 

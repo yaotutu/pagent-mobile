@@ -164,7 +164,7 @@ export class DemoApiClient implements ApiClient {
         emit({ type: 'TOOL_CALL_RESULT', toolCallId: callId, content });
       }
       if (/失败/.test(prompt)) throw new ApiError(503, '这是可复现的演示失败；重新加载后可以再发一条消息。');
-      await text(name ? '结果已整理在工具卡中。你可以打开对应页面继续查看和调整；这里的所有操作都只影响演示工作区。' : /慢流/.test(prompt) ? '这是慢速回复演示。你可以切换到其他页面，回复会继续生成；也可以点击停止，再开始下一轮对话。'.repeat(3) : '你好，我是 Pagent。我们可以一起整理任务、跟进目标，或记住对你重要的事情。想从哪件小事开始？');
+      await text(name ? '结果已整理在工具卡中。你可以打开对应页面继续查看和调整；这里的所有操作都只影响演示工作区。' : /慢流/.test(prompt) ? '这是慢速回复演示。你可以切换到其他页面，回复会继续生成；也可以点击停止，再开始下一轮对话。'.repeat(3) : '你好，我是 Pi Muse。我们可以一起整理任务、跟进目标，或记住对你重要的事情。想从哪件小事开始？');
       emit({ type: 'TEXT_MESSAGE_END', messageId: assistant.id });
       emit({ type: 'RUN_FINISHED', threadId: input.threadId, runId: input.runId });
       completed = true;

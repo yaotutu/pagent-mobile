@@ -1,8 +1,7 @@
 import { normalizeServerAddress } from './server-address';
 import type { ConnectionRecord } from './types';
 
-export const CONNECTION_KEY = 'pagent-connection';
-const LEGACY_TOKEN_KEY = 'pagent-token';
+export const CONNECTION_KEY = 'pi-muse-connection';
 export type AsyncKeyValueStore = {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
@@ -33,18 +32,13 @@ export function createConnectionStore(storage: AsyncKeyValueStore): ConnectionSt
   return {
     load: () => enqueue(async () => {
       const raw = await storage.getItem(CONNECTION_KEY);
-      if (raw === null) {
-        // 旧Token没有服务器归属，不能猜测地址或发送给用户新填的服务器。
-        await storage.removeItem(LEGACY_TOKEN_KEY);
-        return undefined;
-      }
+      if (raw === null) return undefined;
       let value: unknown;
       try { value = JSON.parse(raw); } catch { throw new Error('连接配置已损坏，请重新配置服务器'); }
       return recordFrom(value);
     }),
     save: (record) => enqueue(async () => {
       const value = recordFrom(record);
-      await storage.removeItem(LEGACY_TOKEN_KEY);
       await storage.setItem(CONNECTION_KEY, JSON.stringify(value));
     }),
   };

@@ -5,7 +5,7 @@ export function demoWorkspace(empty = false): WorkspaceSnapshot {
   const now = new Date().toISOString();
   const before = new Date(Date.now() - 45 * 60_000).toISOString();
   const base = {
-    identity: { name: 'Pagent', tone: 'warm', avatar: 'sky', showChatUpdates: true },
+    identity: { name: 'Pi Muse', tone: 'warm', avatar: 'sky', showChatUpdates: true },
     worker: { running: true },
   };
   if (empty) return { ...base, tasks: [], goals: [], monitors: [], memories: [], notifications: [] };

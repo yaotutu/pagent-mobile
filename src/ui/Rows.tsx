@@ -69,7 +69,7 @@ export function CheckRow({
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  /** 区块标题用 label 样式（pagent 规格定稿） */
+  /** 区块标题用 label 样式（pi-muse 规格定稿） */
   sectionLabel: { ...typography.label, fontWeight: '700', color: colors.muted },
   checkBox: {
     width: sizing[19],

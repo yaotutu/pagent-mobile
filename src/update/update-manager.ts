@@ -170,7 +170,7 @@ export class UpdateManager {
 
   openInstallSettings = (): Promise<void> => {
     if (this.disposed || this.job || !this.fileUri || !this.foreground) return Promise.resolve();
-    this.publish({ status: 'installing', error: undefined, errorStage: undefined, message: '请在系统设置中允许 Pagent 安装应用，返回后继续安装' });
+    this.publish({ status: 'installing', error: undefined, errorStage: undefined, message: '请在系统设置中允许 Pi Muse 安装应用，返回后继续安装' });
     return this.run(async (id) => {
       await this.dependencies.openInstallSettings();
       if (this.current(id)) {

@@ -36,7 +36,7 @@
 - 持久化字段 `{serverUrl, token?, resetPending?}`，**地址与 Token 绑定保存在同一 JSON**。**Key 仅表单内存**，不写入存储。
 - Token 模型变更：用户已明确后端永久 Token 模型稍后同步，前端不再以旧 24h 文档为阻塞；客户端不解析 `exp`、不计时过期、不主动续期。
 - 错误语义：网络/超时/5xx 保留 token 与草稿，仅原址重试；401 仅清凭据原址重登，不清业务数据。"更改服务器"页允许离线保存新地址，不沿用旧 Token；规范化后与旧地址不同保存前二次确认清本地业务数据与旧凭据（不删远端）。
-- 旧 `pagent-token` 单值无绑定地址，不能猜归属，首次切换需重输 URL/Key。
+- 存储契约：使用 `pi-muse-connection` 单条记录，不保留任何旧键兼容逻辑。
 - 预留 `src/connection/cache-reset.ts` 的 `clearLocalWorkspaceData()`（async 空实现）：先写 `resetPending` journal，清理成功再放行，失败可重启恢复。
 - 联调示例：Web `http://localhost:8791`（8791→8788 代理带 CORS 头）；Android 模拟器 `http://10.0.2.2:8788`；iOS 模拟器 `http://127.0.0.1:8788`；真机手填设备可达 URL。
 - 旧环境变量 `EXPO_PUBLIC_API_BASE_URL` 已不再用于连接配置，开发地址须在 UI 手填。

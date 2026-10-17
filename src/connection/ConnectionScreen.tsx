@@ -151,7 +151,7 @@ export function ConnectionScreen({
             </Text>
             <Text style={styles.subtitle}>
               {isInitial
-                ? '填写 Pagent 服务地址，访问密钥仅在你服务器启用了访问控制时需要。'
+                ? '填写 Pi Muse 服务地址，访问密钥仅在你服务器启用了访问控制时需要。'
                 : mode === 'configured' ? '地址已经保存，请完成当前服务器的连接认证。' : '当前服务器要求重新输入访问密钥，原有业务数据会保留。'}
             </Text>
 
@@ -163,7 +163,7 @@ export function ConnectionScreen({
                   value={draftUrl}
                   editable={!busy}
                   onChangeText={onChangeUrl}
-                  placeholder="https://pagent.example.com"
+                  placeholder="https://pi-muse.example.com"
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"

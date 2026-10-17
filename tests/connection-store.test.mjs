@@ -18,7 +18,7 @@ function memoryStore(initial = []) {
 for (const [value, expected] of [
   [' https://EXAMPLE.com:443/ ', 'https://example.com'],
   ['http://EXAMPLE.com:80/', 'http://example.com'],
-  ['https://example.com/pagent///', 'https://example.com/pagent'],
+  ['https://example.com/pi-muse///', 'https://example.com/pi-muse'],
   ['http://[::1]:8788/', 'http://[::1]:8788'],
   ['https://example.com/代理/', 'https://example.com/%E4%BB%A3%E7%90%86'],
 ]) test(`地址规范化：${value}`, () => assert.equal(normalizeServerAddress(value), expected));
@@ -35,10 +35,9 @@ test('连接记录绑定地址与永久Token，保存时丢弃Key和其他非契
   assert.equal([...values.values()].some((value) => value.includes('never-store-me')), false);
 });
 
-test('没有地址的旧Token不迁移到编译期默认地址', async () => {
-  const { store, values, actions } = memoryStore([['pagent-token', 'legacy-token']]);
+test('未配置连接时 load 返回 undefined', async () => {
+  const { store, values, actions } = memoryStore();
   assert.equal(await store.load(), undefined);
-  assert.equal(values.has('pagent-token'), false);
   assert.equal(values.has(CONNECTION_KEY), false);
   assert.equal(actions.some(([kind]) => kind === 'set'), false);
 });

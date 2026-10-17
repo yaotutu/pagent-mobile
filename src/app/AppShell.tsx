@@ -109,7 +109,7 @@ export function AppShell({
 
   const pendingCount = notifications.filter((n) => n.status === 'pending').length;
   const runningTask = snapshot?.tasks.find((t) => t.status === 'running');
-  const agentName = snapshot?.identity.name ?? 'Pagent';
+  const agentName = snapshot?.identity.name ?? 'Pi Muse';
   const statusText = pendingCount > 0
     ? `${pendingCount} 项待审批`
     : runningTask

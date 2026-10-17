@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AUTO_CHECK_INTERVAL_MS, UpdateManager } from '../src/update/update-manager.ts';
 
-const release = { id: 1, assetId: 20, version: '1.0.9', size: 100, url: 'https://github.com/yaotutu/pagent-mobile/releases/download/v1.0.9/app-release.apk' };
+const release = { id: 1, assetId: 20, version: '1.0.9', size: 100, url: 'https://github.com/yaotutu/pi-muse-mobile/releases/download/v1.0.9/app-release.apk' };
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const flush = () => new Promise(setImmediate);
 function fixture(options = {}) {

@@ -51,7 +51,7 @@ test('独立实例之间不串数据：记忆、任务、目标互不影响', as
   assert.equal(sb.tasks.length, 0);
   assert.equal(sa.goals.length, 1);
   assert.equal(sb.goals.length, 0);
-  assert.deepEqual(sb, { identity: { name: 'Pagent', tone: 'warm', avatar: 'sky', showChatUpdates: true }, worker: { running: true }, tasks: [], goals: [], monitors: [], memories: [], notifications: [] });
+  assert.deepEqual(sb, { identity: { name: 'Pi Muse', tone: 'warm', avatar: 'sky', showChatUpdates: true }, worker: { running: true }, tasks: [], goals: [], monitors: [], memories: [], notifications: [] });
 });
 
 test('快照与列表返回深拷贝，改动返回值不会污染内部状态', async () => {

@@ -197,7 +197,7 @@ export function ServerSettingsScreen({
                 value={draftUrl}
                 editable={!busy}
                 onChangeText={onChangeUrl}
-                placeholder="https://pagent.example.com"
+                placeholder="https://pi-muse.example.com"
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"

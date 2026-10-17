@@ -1,6 +1,6 @@
-# pagent-mobile — Pagent 移动客户端
+# pi-muse-mobile — Pi Muse 移动客户端
 
-pagent 的官方移动客户端（iOS / Android / 平板，Expo + React Native + TypeScript）。UI 参考 OpenMuse（`~/Desktop/code/openmuse/apps/mobile`），**代码全自研**：不 fork、不用 CopilotKit SDK。产品后续会有一期纯 Web 客户端（pagent-web），以本项目 UI 定稿为参照，本仓库不做 Web 版。
+pi-muse 的官方移动客户端（iOS / Android / 平板，Expo + React Native + TypeScript）。UI 参考 OpenMuse（`~/Desktop/code/openmuse/apps/mobile`），**代码全自研**：不 fork、不用 CopilotKit SDK。产品后续会有一期纯 Web 客户端（pi-muse-web），以本项目 UI 定稿为参照，本仓库不做 Web 版。
 
 ## Subagent 委派与成本控制
 
@@ -85,7 +85,7 @@ stdout 输出 `version=X.Y.Z` / `versionCode=N` / `buildNumber=N`，CI 里 `>> "
 
 - `expo.name` / `expo.slug` / `expo.icon` / `plugins` / `expo.web` / `expo.android` 下非 `versionCode` 字段 / `android.package`：随便改。
 - `expo.version` / `expo.android.versionCode` / `expo.ios.buildNumber`：**禁止手动改**，跑 `tools/bump-version.js`。
-- `android.package`：当前是 `com.yaotutu.pagentmobile`。**不可改**——Play Store 包名绑定，改了装过的人升级会拒收。
+- `android.package`：已切换为 `com.yaotutu.pimusemobile`。如后续发布至应用市场请保持固定。
 
 ### 当前不做
 
@@ -95,7 +95,7 @@ iOS 构建、OTA 自动更新、Play Store 自动上架。后期接 OTA 时再�
 
 更新模块 `src/update/` 由 `src/app/AppRoot.tsx` 根级持有，独立于服务端鉴权与 `EXPO_PUBLIC_API_BASE_URL`，不读、不缓存、不上报用户服务地址。
 
-- 检测源：公开 GitHub `yaotutu/pagent-mobile` 的 `releases/latest`，仅识别稳定正式 `app-release.apk`；预发布 / draft / 其它 asset 不纳入。
+- 检测源：公开 GitHub `yaotutu/pi-muse-mobile` 的 `releases/latest`，仅识别稳定正式 `app-release.apk`；预发布 / draft / 其它 asset 不纳入。
 - 触发时机：冷启动及 Android 前台按一小时间隔检查，回到前台超过间隔也检查。手动入口：应用页「应用更新」、连接页「检查应用更新」。
 - 下载 / 安装：发现新版自动下载，进度可收起继续使用应用，完成后自动唤起系统安装器；不提供额外下载确认 / 应用层 checksum / 校验页；系统签名校验、未知来源授权、最终安装确认必须保留（不静默安装）；本次会话取消安装后留包可继续安装，系统清理缓存后需重下；下载可取消、失败可重试。
 - 进程与流量：OS 杀后台后下载不保证继续，仅前台唤起安装；下载消耗用户网络流量。
@@ -134,7 +134,7 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
-- **本项目不使用 Expo Router / react-navigation**（pagent 技术决策）：4 个主 tab 用状态机切换（`View = chat | activity | goals | apps`），详情与弹层用自研 Sheet 组件（<600px 底部抽屉 / 桌面居中模态），与 OpenMuse 的 App.tsx 模式一致。
+- **本项目不使用 Expo Router / react-navigation**（pi-muse 技术决策）：4 个主 tab 用状态机切换（`View = chat | activity | goals | apps`），详情与弹层用自研 Sheet 组件（<600px 底部抽屉 / 桌面居中模态），与 OpenMuse 的 App.tsx 模式一致。
 - 因此不存在 `src/app/` 路由目录；页面代码放 `src/chat/`、`src/activity/`、`src/goals/`、`src/apps/`。
 
 ## Building with EAS

@@ -2,7 +2,7 @@
  * 设计 token —— 全项目视觉常量的唯一事实来源。
  *
  * 值逐项取自 OpenMuse 客户端（~/Desktop/code/openmuse/apps/mobile/src/ui.tsx），
- * 由 pagent-mobile 重新声明，不 import 对方代码。后续纯 Web 客户端（pagent-web）
+ * 由 pi-muse-mobile 重新声明，不 import 对方代码。后续纯 Web 客户端（pi-muse-web）
  * 应把本文件同源翻译成 Tailwind @theme，改值只改这里，禁止在组件里散写色值/圆角。
  */
 
