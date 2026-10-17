@@ -13,6 +13,8 @@ import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useDemo } from '../demo/DemoProvider';
 import { FilterPills } from '../ui/FilterPills';
+import { hapticNotification } from '../ui/haptics';
+import * as Haptics from 'expo-haptics';
 import { useApi } from '../api/ApiProvider';
 import { timeAgo } from '../shared/format';
 import type { ApprovalNotification } from '../api/types';
@@ -56,6 +58,7 @@ export function ApprovalsSheet({
     try {
       const result = await api.decideAction(id, decision);
       decidedIds.current.add(id);
+      void hapticNotification(decision === 'approve' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
       onDecided(result);
       refresh();
     } catch (e) {

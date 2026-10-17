@@ -4,6 +4,7 @@ import { ChevronRight, CircleDollarSign, Heart, Square, SquareCheck, Target, Use
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApi } from '../api/ApiProvider';
+import { hapticImpact } from '../ui/haptics';
 import type { Goal, GoalStatus, WorkspaceSnapshot } from '../api/types';
 import { Empty, ErrorNotice } from '../ui/Feedback';
 import { Chip } from '../ui/Surfaces';
@@ -50,6 +51,7 @@ export function GoalsScreen({
   const inFlight = useRef(new Set<string>());
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string>();
+  const [optimisticMilestones, setOptimisticMilestones] = useState<Record<string, boolean>>({});
 
   // ref 锁在渲染前生效；失败继续抛给表单，以保留输入与弹层。
   const perform = async (id: string, action: () => Promise<unknown>) => {
@@ -73,8 +75,42 @@ export function GoalsScreen({
     });
   };
 
+  /** 乐观更新里程碑：即时翻转状态并触发触觉反馈，失败时回退 */
+  const handleToggleMilestone = async (goalId: string, milestoneId: string) => {
+    void hapticImpact();
+    const currentDone = detail?.milestones.find((m) => m.id === milestoneId)?.done ?? false;
+    const nextDone = !currentDone;
+    setOptimisticMilestones((prev) => ({ ...prev, [milestoneId]: nextDone }));
+
+    try {
+      await api.toggleMilestone(goalId, milestoneId);
+      refresh();
+      setOptimisticMilestones((prev) => {
+        if (!(milestoneId in prev)) return prev;
+        const next = { ...prev };
+        delete next[milestoneId];
+        return next;
+      });
+    } catch (e) {
+      setOptimisticMilestones((prev) => {
+        const next = { ...prev };
+        delete next[milestoneId];
+        return next;
+      });
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   // 详情内容始终按 id 回查快照：写入后自动反映新状态，删除后详情随之关闭。
-  const detail = detailId ? goals.find((goal) => goal.id === detailId) : undefined;
+  const rawDetail = detailId ? goals.find((goal) => goal.id === detailId) : undefined;
+  const detail = rawDetail
+    ? {
+        ...rawDetail,
+        milestones: rawDetail.milestones.map((m) =>
+          m.id in optimisticMilestones ? { ...m, done: optimisticMilestones[m.id] } : m
+        ),
+      }
+    : undefined;
   const visible = goals.filter((goal) => matches(goal, filter));
 
   return (
@@ -164,7 +200,7 @@ export function GoalsScreen({
           error={error}
           busy={busyIds.has(detail.id)}
           onClose={() => setDetailId(undefined)}
-          onToggle={(mid) => run(detail.id, () => api.toggleMilestone(detail.id, mid))}
+          onToggle={(mid) => handleToggleMilestone(detail.id, mid)}
           onStatus={(status: GoalStatus) => run(detail.id, () => api.setGoalStatus(detail.id, status))}
           onEdit={async (input) => {
             await perform(detail.id, () => api.updateGoal(detail.id, input));

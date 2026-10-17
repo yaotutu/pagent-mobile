@@ -12,6 +12,7 @@ import { DemoApiClient } from '../demo/DemoApiClient';
 import { DemoProvider } from '../demo/DemoProvider';
 import { useThreads } from '../threads/useThreads';
 import { Button } from '../ui/Buttons';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { OverlayVisibilityProvider } from '../ui/overlay-visibility';
 import { ToastProvider } from '../ui/toast';
 import { colors, layout, spacing, typography } from '../ui/tokens';
@@ -97,11 +98,11 @@ function DemoRoot({ client, reset, exit }: { client: DemoApiClient; reset: (empt
 export default function AppRoot({ updateManager }: { updateManager?: UpdateManager } = {}) {
   const [demo, setDemo] = useState<{ client: DemoApiClient; generation: number }>();
   const enterDemo = useCallback((empty = false) => setDemo((previous) => ({ client: new DemoApiClient(empty), generation: (previous?.generation ?? 0) + 1 })), []);
-  return <SafeAreaProvider><UpdateProvider manager={updateManager}>
+  return <SafeAreaProvider><ErrorBoundary title="应用运行异常"><UpdateProvider manager={updateManager}>
     <StatusBar style="dark" />
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, display: demo ? 'none' : 'flex' }}><ServiceRoot active={!demo} onDemo={enterDemo} /></View>
       {demo && <DemoRoot key={demo.generation} client={demo.client} reset={enterDemo} exit={() => setDemo(undefined)} />}
     </View>
-  </UpdateProvider></SafeAreaProvider>;
+  </UpdateProvider></ErrorBoundary></SafeAreaProvider>;
 }

@@ -6,16 +6,27 @@
  *   顶部抓手条，底部让出安全区（刘海屏 home indicator）。
  * - ≥600（平板/桌面 Web）：居中模态，fade 动画，maxWidth 见 tokens。
  *
- * 用法：由父组件条件渲染 `{open && <Sheet .../>}`，onClose 里置 false；
- * 内容区自带纵向滚动与键盘处理。
+ * 优化增强：
+ * - 弹层内部包裹 KeyboardAvoidingView，iOS 启用 padding 避让软键盘。
+ * - 弹层内部挂载 ErrorBoundary，容错隔离弹层异常。
  */
 
 import { X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOverlayVisibility } from './overlay-visibility';
 import { IconButton } from './Buttons';
+import { ErrorBoundary } from './ErrorBoundary';
 import { colors, layout, radius, sizing, spacing, typography } from './tokens';
 
 export function Sheet({
@@ -36,14 +47,20 @@ export function Sheet({
   const visible = useOverlayVisibility();
   const insets = useSafeAreaInsets();
   const compact = width < layout.sheetCompactBreakpoint;
+
   return (
     <Modal
       accessibilityLabel={title}
       transparent
       animationType={compact ? 'slide' : 'fade'}
-      visible={visible}      onRequestClose={onClose}
+      visible={visible}
+      onRequestClose={onClose}
     >
-      <View style={[styles.shade, compact && { padding: 0, justifyContent: 'flex-end' }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.shade, compact && { padding: 0, justifyContent: 'flex-end' }]}
+        enabled={Platform.OS !== 'web'}
+      >
         <View
           accessibilityViewIsModal
           style={[
@@ -72,10 +89,10 @@ export function Sheet({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: compact ? spacing[20] : spacing.section }}
           >
-            {children}
+            <ErrorBoundary title={`${title} 显示异常`}>{children}</ErrorBoundary>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
