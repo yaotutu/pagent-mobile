@@ -45,9 +45,10 @@ import { IconButton } from '../ui/Buttons';
 import { ThreadsSheet } from '../threads/ThreadsSheet';
 import { useApprovalDecisions } from '../approvals/useApprovalDecisions';
 import { colors, layout, radius, shadows, sizing, spacing, typography } from '../ui/tokens';
+import { useUiStore, type TabView } from '../ui/ui-store';
 
 /** 四个主 tab（技术定稿：状态机切换，不引导航库）。HANDOFF 原文称 View，因与 RN View 重名改为 TabView。 */
-export type TabView = 'chat' | 'activity' | 'goals' | 'apps';
+export type { TabView };
 
 const NAV: { id: TabView; label: string; icon: LucideIcon }[] = [
   { id: 'chat', label: '聊天', icon: MessageCircle },
@@ -92,9 +93,12 @@ export function AppShell({
   reloadThreads: () => void;
   onDemo: () => void;
 }) {
-  const [view, setView] = useState<TabView>('chat');
-  const [threadsOpen, setThreadsOpen] = useState(false);
-  const [approvalsOpen, setApprovalsOpen] = useState(false);
+  const view = useUiStore((s) => s.currentTab);
+  const setView = useUiStore((s) => s.setCurrentTab);
+  const threadsOpen = useUiStore((s) => s.threadsOpen);
+  const setThreadsOpen = useUiStore((s) => s.setThreadsOpen);
+  const approvalsOpen = useUiStore((s) => s.approvalsOpen);
+  const setApprovalsOpen = useUiStore((s) => s.setApprovalsOpen);
   const demo = useDemo();
   const connection = useServiceConnection();
   const { notifications: liveNotifications, recordDecision } = useApprovalDecisions(snapshot?.notifications);

@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { colors, layout, radius, sizing, spacing, typography } from './tokens';
 
 const ToastContext = createContext<(message: string) => void>(() => {});
@@ -34,7 +35,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={setToast}>
       {children}
       {!!toast && (
-        <View pointerEvents="box-none" style={styles.wrap}>
+        <Animated.View
+          entering={FadeInDown.duration(250)}
+          exiting={FadeOutDown.duration(200)}
+          pointerEvents="box-none"
+          style={styles.wrap}
+        >
           <View style={styles.pill}>
             <Check size={sizing[16]} color={colors.bubbleUser} />
             <Text style={styles.text}>{toast}</Text>
@@ -46,7 +52,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <X size={sizing[16]} color={colors.card} />
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       )}
     </ToastContext.Provider>
   );

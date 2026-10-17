@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1180" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1473C8"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#697176"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#AA4A45"/>
+    </marker>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="360" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#11191C">pagent-mobile 架构</text>
+  <text x="360" y="56" text-anchor="middle" font-size="11" fill="#697176">Expo SDK 57 · RN 0.86 · React 19.2 · TS strict · 全自研 / 无导航库 / 无状态库</text>
+
+  <!-- ============ L1 AppRoot ============ -->
+  <rect x="220" y="80" width="280" height="52" rx="10" fill="#1473C8"/>
+  <text x="360" y="104" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">AppRoot · 根状态机</text>
+  <text x="360" y="122" text-anchor="middle" fill="#C8E7FF" font-size="10">demo ? DemoRoot : ServiceRoot</text>
+
+  <!-- 分叉 -->
+  <path d="M360 132 L360 152 L180 152 L180 168 M360 152 L540 152 L540 168" stroke="#1473C8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- ============ L2 DemoRoot / ServiceRoot ============ -->
+  <rect x="80" y="170" width="200" height="56" rx="10" fill="#fff" stroke="#697176" stroke-width="1.5"/>
+  <text x="180" y="194" text-anchor="middle" font-size="13" font-weight="600">DemoRoot</text>
+  <text x="180" y="212" text-anchor="middle" font-size="10" fill="#697176">演示分支 · in-memory</text>
+
+  <rect x="440" y="170" width="200" height="56" rx="10" fill="#fff" stroke="#1473C8" stroke-width="2"/>
+  <text x="540" y="194" text-anchor="middle" font-size="13" font-weight="600">ServiceRoot</text>
+  <text x="540" y="212" text-anchor="middle" font-size="10" fill="#697176">真实服务分支</text>
+
+  <!-- 注释:切换用 key=generation 拆子树 -->
+  <path d="M180 226 L180 250" stroke="#697176" stroke-width="1.5" fill="none" marker-end="url(#arrG)"/>
+  <path d="M540 226 L540 250" stroke="#1473C8" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <!-- ============ L3 子模块 ============ -->
+  <rect x="80" y="258" width="200" height="64" rx="8" fill="#FCFCFC" stroke="#697176"/>
+  <text x="180" y="280" text-anchor="middle" font-size="12" font-weight="600">DemoApiClient</text>
+  <text x="180" y="298" text-anchor="middle" font-size="10" fill="#697176">fixtures · 不发网络</text>
+  <text x="180" y="312" text-anchor="middle" font-size="10" fill="#697176">不存 SecureStore</text>
+
+  <rect x="300" y="258" width="160" height="64" rx="8" fill="#FCFCFC" stroke="#1473C8"/>
+  <text x="380" y="280" text-anchor="middle" font-size="12" font-weight="600">ConnectionManager</text>
+  <text x="380" y="298" text-anchor="middle" font-size="10" fill="#697176">server / token /</text>
+  <text x="380" y="312" text-anchor="middle" font-size="10" fill="#697176">workspace 重置</text>
+
+  <rect x="480" y="258" width="160" height="64" rx="8" fill="#FCFCFC" stroke="#1473C8"/>
+  <text x="560" y="282" text-anchor="middle" font-size="12" font-weight="600">HttpApiClient</text>
+  <text x="560" y="300" text-anchor="middle" font-size="10" fill="#697176">expo/fetch</text>
+  <text x="560" y="314" text-anchor="middle" font-size="10" fill="#697176">+ SSE 分帧</text>
+
+  <!-- ApiClient 契约 横线 -->
+  <rect x="80" y="346" width="560" height="38" rx="8" fill="#EDF7FD" stroke="#1473C8" stroke-dasharray="5,3" stroke-width="1.5"/>
+  <text x="360" y="370" text-anchor="middle" font-size="12" font-style="italic" fill="#1473C8" font-weight="600">ApiClient 契约 · src/api/contracts.ts · 双实现同接口</text>
+
+  <!-- 汇聚到 ApiProvider -->
+  <path d="M180 322 L180 396 M380 322 L380 396 M560 322 L560 396 M180 396 L560 396 M360 396 L360 414" stroke="#1473C8" stroke-width="1.5" fill="none"/>
+
+  <!-- ============ L4 ApiProvider → Workspace ============ -->
+  <rect x="240" y="416" width="240" height="48" rx="10" fill="#1473C8"/>
+  <text x="360" y="440" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">ApiProvider · useApi()</text>
+  <text x="360" y="456" text-anchor="middle" fill="#C8E7FF" font-size="10">页面只读契约,无传输细节</text>
+
+  <path d="M360 464 L360 484" stroke="#1473C8" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <rect x="100" y="486" width="520" height="60" rx="10" fill="#fff" stroke="#1473C8" stroke-width="2"/>
+  <text x="360" y="510" text-anchor="middle" font-size="13" font-weight="600">Workspace · 共享层</text>
+  <text x="360" y="528" text-anchor="middle" font-size="10" fill="#697176">useWorkspaceSnapshot (5s 轮询 + generation 隔离) · useThreads · useConnection</text>
+  <text x="360" y="542" text-anchor="middle" font-size="10" fill="#697176">刷新回调下传到子页面</text>
+
+  <path d="M360 546 L360 568" stroke="#1473C8" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <!-- ============ L5 AppShell ============ -->
+  <rect x="60" y="570" width="600" height="68" rx="10" fill="#fff" stroke="#1473C8" stroke-width="2"/>
+  <text x="360" y="594" text-anchor="middle" font-size="13" font-weight="600">AppShell · 4 tab 状态机 + Sheet 层</text>
+  <text x="360" y="612" text-anchor="middle" font-size="10" fill="#697176">顶栏: 汉堡 / agent 名+状态 / 铃铛</text>
+  <text x="360" y="626" text-anchor="middle" font-size="10" fill="#697176">底部: 悬浮 pill tab bar (OpenMuse 同款) · 切 tab chat 常驻 display:none</text>
+
+  <!-- ============ L6 4 tabs ============ -->
+  <path d="M360 638 L360 658" stroke="#697176" stroke-width="1.5" fill="none" marker-end="url(#arrG)"/>
+
+  <rect x="50" y="668" width="120" height="46" rx="22" fill="#C8E7FF" stroke="#1473C8" stroke-width="2"/>
+  <text x="110" y="688" text-anchor="middle" font-size="12" font-weight="700">chat</text>
+  <text x="110" y="704" text-anchor="middle" font-size="9" fill="#1473C8">常驻 · 切 thread key 拆</text>
+
+  <rect x="185" y="668" width="120" height="46" rx="22" fill="#fff" stroke="#697176"/>
+  <text x="245" y="688" text-anchor="middle" font-size="12" font-weight="600">activity</text>
+  <text x="245" y="704" text-anchor="middle" font-size="9" fill="#697176">任务 / 监控</text>
+
+  <rect x="320" y="668" width="120" height="46" rx="22" fill="#fff" stroke="#697176"/>
+  <text x="380" y="688" text-anchor="middle" font-size="12" font-weight="600">goals</text>
+  <text x="380" y="704" text-anchor="middle" font-size="9" fill="#697176">目标 / 里程碑</text>
+
+  <rect x="455" y="668" width="120" height="46" rx="22" fill="#fff" stroke="#697176"/>
+  <text x="515" y="688" text-anchor="middle" font-size="12" font-weight="600">apps</text>
+  <text x="515" y="704" text-anchor="middle" font-size="9" fill="#697176">身份 / 记忆 / 人设</text>
+
+  <!-- ============ L7 核心运行时 ============ -->
+  <rect x="50" y="740" width="620" height="74" rx="10" fill="#F0EEFA" stroke="#47896C" stroke-width="1.5"/>
+  <text x="68" y="764" font-size="12" font-weight="700" fill="#47896C">聊天运行时 (最复杂的一段)</text>
+  <text x="68" y="784" font-size="10" fill="#11191C">useConversation → StreamAggregator → MessageView[] → ToolCard(注册表 Map + "*")</text>
+  <text x="68" y="800" font-size="10" fill="#697176">SSE: TEXT_/TOOL_/MESSAGES_SNAPSHOT/RUN_ERROR · RUN_FINISHED 后拉权威历史整体替换</text>
+
+  <!-- ============ 视觉单一来源 ============ -->
+  <rect x="50" y="828" width="620" height="44" rx="8" fill="#FDF0DF" stroke="#AA4A45" stroke-width="1.5"/>
+  <text x="68" y="850" font-size="11" font-weight="700" fill="#AA4A45">src/ui/tokens.ts · 视觉单一来源</text>
+  <text x="68" y="866" font-size="10" fill="#11191C">colors / radius / typography / spacing / sizing / shadows / layout · 组件禁止散写色值</text>
+
+  <!-- ============ 底部双栏: 不能动 / 设计定稿 ============ -->
+  <!-- 左: 红 -->
+  <rect x="50" y="892" width="305" height="260" rx="10" fill="#FBEFED" stroke="#AA4A45" stroke-width="2"/>
+  <text x="70" y="918" font-size="13" font-weight="700" fill="#AA4A45">⚠ 边界红线</text>
+  <text x="70" y="942" font-size="10" fill="#11191C">• ~/Desktop/code/personal-bot</text>
+  <text x="80" y="956" font-size="10" fill="#697176">(只读, 唯一允许 pnpm dev:mock)</text>
+  <text x="70" y="978" font-size="10" fill="#11191C">• expo.version / versionCode / buildNumber</text>
+  <text x="80" y="992" font-size="10" fill="#697176">(只能 tools/bump-version.js)</text>
+  <text x="70" y="1014" font-size="10" fill="#11191C">• android.package (Play Store 绑定)</text>
+  <text x="70" y="1036" font-size="10" fill="#11191C">• 不合理接口 → 报告用户</text>
+  <text x="80" y="1050" font-size="10" fill="#697176">(绝不自己改服务端)</text>
+  <text x="70" y="1072" font-size="10" fill="#11191C">• 视觉常量只改 tokens.ts</text>
+  <text x="70" y="1094" font-size="10" fill="#11191C">• 组件禁止散写色值/圆角</text>
+  <text x="70" y="1116" font-size="10" fill="#11191C">• 切 server/token → generation++</text>
+  <text x="80" y="1130" font-size="10" fill="#697176">(防旧请求回写)</text>
+
+  <!-- 右: 绿 -->
+  <rect x="365" y="892" width="305" height="260" rx="10" fill="#E3F3E8" stroke="#47896C" stroke-width="2"/>
+  <text x="385" y="918" font-size="13" font-weight="700" fill="#47896C">✓ 设计定稿</text>
+  <text x="385" y="942" font-size="10" fill="#11191C">• 无导航库 (tab 状态机 + Sheet)</text>
+  <text x="385" y="962" font-size="10" fill="#11191C">• 无状态库 (useState + Context</text>
+  <text x="395" y="976" font-size="10" fill="#697176">+ generation ref 隔离)</text>
+  <text x="385" y="998" font-size="10" fill="#11191C">• SSE = expo/fetch + 自研分帧</text>
+  <text x="385" y="1018" font-size="10" fill="#11191C">• 工具卡 = Map 注册 + "*" 通配</text>
+  <text x="385" y="1038" font-size="10" fill="#11191C">• Markdown 链接 http/https 白名单</text>
+  <text x="385" y="1058" font-size="10" fill="#11191C">• ApiClient 单接口双实现</text>
+  <text x="385" y="1078" font-size="10" fill="#11191C">• 5s 快照轮询 (单在途复用)</text>
+  <text x="385" y="1098" font-size="10" fill="#11191C">• 工具卡 zod 容错 + 失败文案</text>
+  <text x="385" y="1118" font-size="10" fill="#11191C">• 测试 = Node --test 纯逻辑</text>
+  <text x="395" y="1132" font-size="10" fill="#697176">(无 Jest / 无 E2E CI)</text>
+
+</svg>
